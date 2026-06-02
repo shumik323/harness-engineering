@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Sensor: запускает тесты для изменённых файлов.
-# Claude Code вызывает при PostToolUse(Edit/Write).
-# Mute the green — молчит при успехе, сигналит только при провале.
+# PostToolUse(Edit/Write) — Claude Code. afterFileEdit — Cursor.
+# Mute the green: exit 0 без вывода при успехе.
+# При провале: additionalContext → system reminder в агент.
 #
-# Переменные окружения (из .harness.conf или env):
-#   WATCH_DIR — директория за которой следим (напр. "packages/ui-kit/lib")
-#   TEST_CMD  — команда тестов, принимает список файлов (напр. "vitest related --run")
-#   REPO_ROOT — корень репо
+# Конфиг (.harness.conf):
+#   WATCH_DIR — директория (напр. "packages/ui-kit/lib")
+#   TEST_CMD  — команда тестов (напр. "npx vitest related --run")
+#   TEST_WORKDIR — откуда запускать TEST_CMD (напр. "packages/ui-kit")
 
 set -euo pipefail
 
@@ -16,38 +17,66 @@ CONF="${REPO_ROOT}/.harness.conf"
 
 WATCH_DIR="${WATCH_DIR:-src}"
 TEST_CMD="${TEST_CMD:-echo 'TEST_CMD not set'}"
+TEST_WORKDIR="${TEST_WORKDIR:-}"
 
-# Читаем изменённый файл из аргументов или stdin (JSON)
-if [[ $# -ge 1 ]]; then
-  CHANGED_FILE="$1"
-else
-  INPUT=$(cat)
-  CHANGED_FILE=$(echo "$INPUT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('file_path',''))" 2>/dev/null || echo "")
-fi
+export HOOK_INPUT
+HOOK_INPUT="$(cat || true)"
 
-if [[ -z "$CHANGED_FILE" ]]; then
-  exit 0
-fi
+[[ -z "${HOOK_INPUT// }" ]] && exit 0
+
+CHANGED_FILE="$(python3 <<'PY'
+import json, os
+
+raw = os.environ.get("HOOK_INPUT", "")
+if not raw.strip():
+    print(""); raise SystemExit
+
+try:
+    data = json.loads(raw)
+except (json.JSONDecodeError, TypeError):
+    print(""); raise SystemExit
+
+def walk(obj, acc):
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            if k in ("file_path", "filePath", "path", "target_file") and isinstance(v, str):
+                acc.append(v)
+            walk(v, acc)
+    elif isinstance(obj, list):
+        for v in obj:
+            walk(v, acc)
+
+paths = []
+walk(data, paths)
+print(paths[0] if paths else "")
+PY
+)"
+
+[[ -z "$CHANGED_FILE" ]] && exit 0
 
 WATCH_ABS="${REPO_ROOT}/${WATCH_DIR}"
+[[ "$CHANGED_FILE" != "$WATCH_ABS"* ]] && [[ "$CHANGED_FILE" != "${WATCH_DIR}"* ]] && exit 0
+[[ "$CHANGED_FILE" == *"__tests__"* ]] && exit 0
+[[ "$CHANGED_FILE" == *"__snapshots__"* ]] && exit 0
 
-# Игнорируем файлы вне WATCH_DIR
-if [[ "$CHANGED_FILE" != "$WATCH_ABS"* ]] && [[ "$CHANGED_FILE" != "${WATCH_DIR}"* ]]; then
-  exit 0
-fi
-
-# Игнорируем тест-файлы и снапшоты (они сами и есть тест)
-if [[ "$CHANGED_FILE" == *"__tests__"* ]] || [[ "$CHANGED_FILE" == *"__snapshots__"* ]]; then
-  exit 0
-fi
-
-# Запускаем тесты. Mute the green: stdout подавляем, stderr — нет.
-cd "$REPO_ROOT"
-if $TEST_CMD "$CHANGED_FILE" > /dev/null 2>&1; then
-  exit 0  # Успех — молчим
+if [[ -n "$TEST_WORKDIR" ]]; then
+  cd "${REPO_ROOT}/${TEST_WORKDIR}"
 else
-  echo "SENSOR: tests failed for ${CHANGED_FILE}" >&2
-  # Повторяем с выводом чтобы Claude увидел детали
-  $TEST_CMD "$CHANGED_FILE" >&2 || true
-  exit 1
+  cd "$REPO_ROOT"
 fi
+
+set +e
+OUTPUT="$($TEST_CMD "$CHANGED_FILE" 2>&1)"
+EXIT_CODE=$?
+set -e
+
+[[ $EXIT_CODE -eq 0 ]] && exit 0
+
+echo "$OUTPUT" | tail -30 >&2
+BASENAME="$(basename "$CHANGED_FILE")"
+python3 -c "
+import json
+msg = 'Tests FAILED for ${BASENAME}. Fix the errors above before continuing.'
+print(json.dumps({'hookSpecificOutput': {'hookEventName': 'PostToolUse', 'additionalContext': msg}}))
+"
+exit 1

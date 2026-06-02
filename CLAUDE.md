@@ -51,7 +51,7 @@
 skeleton/
 ├── CLAUDE.md.template          ← роутер с плейсхолдерами
 ├── .claude/
-│   ├── settings.json.template  ← хуки: SessionStart, PostToolUse, Stop
+│   ├── settings.json.template  ← хуки: PreToolUse (guard), PostToolUse (sensor), SessionStart, Stop
 │   ├── guards/
 │   │   ├── block-zones.sh      ← блокирует READONLY_ZONES
 │   │   └── run-test-hook.sh    ← запускает TEST_CMD после Edit/Write

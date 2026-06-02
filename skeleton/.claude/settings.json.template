@@ -1,5 +1,25 @@
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${REPO_ROOT}/.claude/guards/block-zones.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${REPO_ROOT}/.claude/guards/block-zones.sh"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
@@ -7,10 +27,6 @@
           {
             "type": "command",
             "command": "bash ${REPO_ROOT}/.claude/guards/run-test-hook.sh"
-          },
-          {
-            "type": "command",
-            "command": "bash ${REPO_ROOT}/.claude/guards/block-zones.sh"
           }
         ]
       }
@@ -30,7 +46,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Сессия завершается. Запусти /end-session чтобы обновить лог в TechWiki."
+            "prompt": "Сессия завершается. Если в этой сессии была реальная работа — запусти /end-session чтобы обновить лог. Если нет — просто подтверди завершение."
           }
         ]
       }
