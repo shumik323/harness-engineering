@@ -31,8 +31,47 @@ bash scripts/verify-harness.sh
 
 ## Структура репо
 
-> Диаграммы выше обновляются вручную при изменении структуры (правило в `CLAUDE.md`).
-> Если хотите живую автогенерацию — смотрите в сторону [repomix](https://github.com/yamadashy/repomix) или `tree -I node_modules`. Оверхед на CI, но всегда актуально.
+> Диаграммы обновляются вручную при изменении структуры (правило в `CLAUDE.md`).
+
+### Два слоя репо
+
+```mermaid
+flowchart LR
+    A[".claude/"] --> B["правила для работы над шаблоном (dogfood)"]
+    C["skeleton/"] --> D["копируется в потребителя (ui-kit и др.)"]
+    style A fill:#f0f0f0
+    style C fill:#e1f5ff
+```
+
+### Runtime flow
+
+```mermaid
+flowchart TD
+    A["Edit/Write/Bash"] --> B["PreToolUse"]
+    B --> C["block-zones.sh"]
+    C --> D{разрешено?}
+    D -->|нет| E["GUARD BLOCKED"]
+    D -->|да| F["PostToolUse"]
+    F --> G["run-test-hook.sh"]
+    G --> H{тест успешен?}
+    H -->|нет| I["additionalContext: vitest FAILED"]
+    H -->|да| J["тишина"]
+    style E fill:#ffcccc
+    style I fill:#ffcccc
+    style J fill:#ccffcc
+```
+
+### Skeleton → Instance
+
+```mermaid
+flowchart LR
+    A["skeleton/"] -->|"cp -r"| B["проект/.claude/"]
+    C[".harness.conf.example"] -->|"заполнить"| D[".harness.conf"]
+    B --> E["instance готов"]
+    D --> E
+    style A fill:#e1f5ff
+    style E fill:#ccffcc
+```
 
 
 ```
