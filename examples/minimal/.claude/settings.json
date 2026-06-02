@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/guards/block-zones.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/guards/run-test-hook.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(bash .claude/guards/*.sh)",
+      "Bash(npx vitest related --run *)"
+    ]
+  }
+}
