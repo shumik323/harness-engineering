@@ -1,0 +1,45 @@
+# <PROJECT_NAME> — Claude Code Harness
+
+## Rule Cascade
+
+1. Root `CLAUDE.md` (этот файл) — глобальные запреты и роутинг
+2. `<PACKAGE_PATH>/CLAUDE.md` — правила конкретного пакета
+3. Memory Bank / AGENTS.md — паттерны и архитектурные решения
+
+При конфликте: этот файл > пакетный CLAUDE.md > Memory Bank.
+
+## Конфигурация
+
+Параметры харнесса: `.harness.conf`
+
+```
+WATCH_DIR=<WATCH_DIR>         # где sensor следит за изменениями
+READONLY_ZONES=<READONLY_ZONES> # guard блокирует запись сюда
+TEST_CMD=<TEST_CMD>           # команда тестов
+WIKI_PATH=<WIKI_PATH>         # долгосрочная память
+```
+
+## Глобальные запреты
+
+- **Нельзя писать в `<READONLY_ZONES>`** — это генерированные файлы. Guard вернёт exit 2.
+- Нельзя менять `package.json` без явного запроса пользователя.
+- Нельзя коммитить без явного «commit» от пользователя.
+
+## Роутинг по пакетам
+
+| Пакет | CLAUDE.md | Когда читать |
+|-------|-----------|-------------|
+| `<PACKAGE_PATH>` | `<PACKAGE_PATH>/CLAUDE.md` | Любые изменения в пакете |
+
+## Команды
+
+| Команда | Что делает |
+|---------|-----------|
+| `/add-component` | Скаффолдинг нового компонента по структуре пакета |
+
+## Хуки (автоматические)
+
+- **PostToolUse(Edit/Write)** в `<WATCH_DIR>` → запускает `<TEST_CMD>` для изменённых файлов
+- **PostToolUse(Write)** в `<READONLY_ZONES>` → guard блокирует (exit 2)
+- **SessionStart** → грузит контекст из `WIKI_PATH`
+- **Stop** → предлагает обновить лог в вики

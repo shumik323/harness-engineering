@@ -1,0 +1,34 @@
+# .harness.conf — конфигурация харнесса для этого проекта
+# Скопируй в корень репо как `.harness.conf`, заполни под свой проект.
+# Этот файл читается скриптами в .claude/guards/ и .claude/commands/
+
+# --- Sensor ---
+
+# Директория за которой следит хук при изменениях файлов.
+# Используется в run-test-hook.sh для фильтрации (нет изменений → молчим).
+# Пример: "packages/ui-kit/lib" или "src"
+WATCH_DIR="src"
+
+# Команда запуска тестов. Должна принимать список файлов как аргументы.
+# Пример: "vitest related --run" или "jest --testPathPattern"
+TEST_CMD="vitest related --run"
+
+# --- Guard ---
+
+# Зоны которые запрещено редактировать напрямую (генерированные файлы).
+# Пробел-разделённый список директорий.
+# Хук block-zones.sh вернёт exit 2 при попытке записи в эти пути.
+READONLY_ZONES="dist"
+
+# --- Memory ---
+
+# Путь к долгосрочной памяти проекта в TechWiki (или другой вики).
+# Используется в load-context.sh (SessionStart) и end-session.md.
+# Пример: "/Users/shumik/Desktop/TechWiki/wiki/projects/ui-kit-harness"
+WIKI_PATH=""
+
+# --- Repo ---
+
+# Корень репозитория (обычно $PWD при запуске хука).
+# Переопределяй только если структура нестандартная.
+REPO_ROOT="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"

@@ -1,0 +1,47 @@
+# Architecture — <PROJECT_NAME>
+
+> Загружать по требованию: `@.claude/docs/ARCHITECTURE.md`
+> НЕ грузится автоматически — только когда агент работает с архитектурой.
+
+## Стек
+
+- **Язык:** <LANG_AND_VERSION>
+- **Фреймворк:** <FRAMEWORK_AND_VERSION>
+- **Сборка:** <BUILD_TOOL>
+- **Тесты:** <TEST_FRAMEWORK>
+- **Доп. инструменты:** <OTHER_TOOLS>
+
+## Структура пакета
+
+```
+<WATCH_DIR>/
+  components/       ← UI-компоненты
+  composables/      ← переиспользуемая логика
+  utils/            ← утилиты
+  index.ts          ← точка входа (barrel)
+```
+
+## Паттерны
+
+- **Компонент:** `<component-name>.vue` + `types.ts` + `use<Name>Classes.ts`
+- **Типы:** `defineProps<{...}>()` / `defineEmits<{...}>()` — строго через generics
+- **Стили:** <STYLE_APPROACH>
+- **Маркер QA:** класс `<prefix>-<name>` обязателен на корневом элементе
+
+## Запрещённые зоны (readonly)
+
+```
+<READONLY_ZONES>
+```
+
+Запись в эти директории блокируется guard-хуком (exit 2).
+
+## Эталон для новых компонентов
+
+`<REFERENCE_PATH>`
+
+## Связь с системой
+
+- Команды: `/add-component` — создать новый компонент по шаблону
+- Тесты: `<TEST_CMD>`
+- Память: `.claude/docs/dev-guide.md` — пошаговый гайд

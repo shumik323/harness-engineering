@@ -1,0 +1,52 @@
+# Dev Guide — <PROJECT_NAME>
+
+> Загружать при добавлении нового компонента/модуля: `@.claude/docs/dev-guide.md`
+
+## Как добавить компонент
+
+1. Запустить `/add-component <ComponentName>`
+2. Заполнить `model/types.ts` — Props и Emits интерфейсы
+3. Реализовать `lib/use<Name>Classes.ts` — логика классов через `computed<string[]>`
+4. Написать unit-тест в `__tests__/`
+5. Создать story в `__stories__/`
+6. Проверить barrel export в `index.ts` пакета
+
+## Структура компонента
+
+```
+<WATCH_DIR>/components/<component-name>/
+  ui/
+    <component-name>.vue          ← <script setup lang="ts"> + шаблон
+  model/
+    types.ts                      ← Props, Emits интерфейсы
+    const.ts                      ← константы (если нужны)
+  lib/
+    use<ComponentName>Classes.ts  ← computed<string[]>
+    __tests__/
+      use<ComponentName>Classes.spec.ts
+  __tests__/
+    <component-name>.spec.ts
+  __stories__/
+    <component-name>.stories.ts
+  index.ts                        ← barrel export
+```
+
+## Эталон
+
+`<REFERENCE_PATH>` — рабочий пример, копировать структуру.
+
+## Команды
+
+```bash
+# Запустить тесты для изменённого файла
+<TEST_CMD> <path-to-file>
+
+# Сборка
+<BUILD_CMD>
+```
+
+## Частые ошибки
+
+- Забыть добавить компонент в `<WATCH_DIR>/index.ts` — импорты не разрешатся
+- Использовать `withDefaults` без необходимости — если нет дефолтов, не нужен
+- Писать стили инлайн — только через <STYLE_APPROACH>

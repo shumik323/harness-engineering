@@ -1,0 +1,45 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${REPO_ROOT}/.claude/guards/run-test-hook.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ${REPO_ROOT}/.claude/guards/block-zones.sh"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${REPO_ROOT}/scripts/load-context.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Сессия завершается. Запусти /end-session чтобы обновить лог в TechWiki."
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npx vitest related --run *)",
+      "Bash(bash .claude/guards/*.sh)"
+    ]
+  }
+}
