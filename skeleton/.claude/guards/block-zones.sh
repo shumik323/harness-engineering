@@ -60,8 +60,16 @@ except:
     print('')
 ")"
   for zone in $READONLY_ZONES; do
-    if echo "$BASH_CMD" | grep -qE "(^|[/ >|&])${zone}(/|\s|\"|'|$)"; then
-      echo "GUARD BLOCKED: Bash command targets '${zone}/' (read-only zone)." >&2
+    # §6: матчим НАМЕРЕНИЕ записи в зону, не упоминание имени в тексте.
+    # zone-как-путь: опц. путь-префикс + zone + граница токена
+    ZONE_PATH="([^[:space:]\"';|&]*/)?${zone}(/|[[:space:]]|\"|'|;|&|\||\$)"
+
+    # 1) redirect (> >> 2> &>) или tee с целью в зоне
+    # 2) команды записи (cp/mv/rm/rmdir/mkdir/touch) с путём в зоне
+    if echo "$BASH_CMD" | grep -qE ">>?[[:space:]]*(\"|')?${ZONE_PATH}" \
+       || echo "$BASH_CMD" | grep -qE "(^|[[:space:]|])tee([[:space:]]+-[a-zA-Z]+)*[[:space:]]+(\"|')?${ZONE_PATH}" \
+       || echo "$BASH_CMD" | grep -qE "(^|[[:space:]|;&])(cp|mv|rm|rmdir|mkdir|touch)([[:space:]]+(-{1,2}[a-zA-Z-]+))*[[:space:]]+([^|;&]*[[:space:]])?(\"|')?${ZONE_PATH}"; then
+      echo "GUARD BLOCKED: Bash command writes into '${zone}/' (read-only zone)." >&2
       echo "Use the build command instead of writing directly." >&2
       exit 2
     fi
