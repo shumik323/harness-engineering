@@ -91,6 +91,14 @@ else
   echo "  [SKIP] load-context.sh не найден — SessionStart без долгосрочной памяти"
 fi
 
+# 7. /note capture skill в skeleton (append.sh исполняем)
+NOTE_APPEND="${REPO_ROOT}/skeleton/.claude/skills/note/append.sh"
+if [[ -x "$NOTE_APPEND" ]]; then
+  ok "skeleton /note capture skill: append.sh исполняем"
+else
+  fail "skeleton /note append.sh не найден или не исполняем: ${NOTE_APPEND}"
+fi
+
 echo ""
 echo "=== Результат: ${PASS} pass / ${FAIL} fail ==="
 

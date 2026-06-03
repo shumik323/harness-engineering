@@ -1,15 +1,17 @@
 # harness-template
 
-Шаблон харнесса Claude Code / Cursor для Vue/TS монорепо.
+Language-agnostic шаблон харнесса для **Claude Code** и **Cursor**.
 
-Харнесс = `CLAUDE.md` + хуки + гарды + команды + связь с долгосрочной памятью.
+Харнесс = `CLAUDE.md` + хуки (guard/sensor) + skills + path-scoped rules + связь с
+долгосрочной памятью. Ядро не зависит от стека: подходит Vue, Go, PHP, бэкенду, лидам.
+Языковая специфика — отдельным слоем (`rules/lang/` + `lang-packs/`).
 
 ---
 
 ## 5-шаговый setup
 
 ```bash
-# 1. Скопируй skeleton в корень своего проекта
+# 1. Скопируй ядро skeleton в корень своего проекта
 cp -r skeleton/.claude ./
 cp skeleton/.harness.conf.example .harness.conf
 
@@ -17,21 +19,54 @@ cp skeleton/.harness.conf.example .harness.conf
 #    WATCH_DIR, READONLY_ZONES, TEST_CMD, WIKI_PATH
 
 # 3. Сделай скрипты исполняемыми
-chmod +x .claude/guards/*.sh
+chmod +x .claude/guards/*.sh .claude/skills/note/append.sh
 
 # 4. Создай CLAUDE.md из шаблона
 cp skeleton/CLAUDE.md.template CLAUDE.md
-# Замени плейсхолдеры: <PROJECT_NAME>, <PACKAGE_PATH>, <STACK>
+# Замени плейсхолдеры: <PROJECT_NAME>, <PACKAGE_PATH>, <STACK>, <TEST_CMD> ...
 
-# 5. Проверь харнесс
+# 5. (опц.) Наложи языковой пакет, если он есть под твой стек
+cp -r skeleton/lang-packs/vue/skills/* .claude/skills/      # пример для Vue
+#    оставь нужный rules/lang/<lang>.md, удали лишние
+
+# 6. Проверь харнесс
 bash scripts/verify-harness.sh
 ```
 
 ---
 
+## Dual-tool: Claude Code + Cursor
+
+Оба инструмента в работе. Хуки настраиваются в обоих, но указывают на **одни и те же**
+скрипты `guards/` — логика не дублируется:
+
+| Инструмент | Конфиг | Механика |
+|-----------|--------|----------|
+| Claude Code | `.claude/settings.json` | `PreToolUse`/`PostToolUse` → `bash guards/*.sh` |
+| Cursor | `.cursor/hooks.json` | `postToolUse` (exit 2 блокирует) → те же `guards/*.sh` |
+
+Меняешь guard-логику один раз в скрипте — работает в обоих.
+
+---
+
+## Текущие конвенции Claude Code (фактчек 2026-06)
+
+Ядро следует актуальным практикам, не legacy:
+
+- **Skills, не commands.** Команды — `.claude/skills/<name>/SKILL.md` (frontmatter,
+  bundled-скрипты). `.claude/commands/*.md` ещё работает, но это legacy.
+- **Path-scoped rules.** `.claude/rules/*.md`; frontmatter `paths:` грузит правило только
+  на совпавших файлах. Без `paths` — грузится всегда (приоритет как у `.claude/CLAUDE.md`).
+- **CLAUDE.md ≤ 200 строк.** Раздутый файл хуже соблюдается. Тяжёлое знание → skills/rules/docs.
+- **Хуки vs CLAUDE.md.** CLAUDE.md — совет; хук — детерминированное действие. «Должно
+  случиться каждый раз без исключений» → хук, не инструкция.
+- **Verify before ship.** У агента всегда есть проверка, которую можно запустить.
+
+---
+
 ## Структура репо
 
-> Диаграммы обновляются вручную при изменении структуры (правило в `CLAUDE.md`).
+> Диаграммы и дерево обновляются вручную при изменении структуры (правило в `CLAUDE.md`).
 
 ### Два слоя репо
 
@@ -50,62 +85,82 @@ flowchart TD
     A["Edit/Write/Bash"] --> B["PreToolUse"]
     B --> C["block-zones.sh"]
     C --> D{разрешено?}
-    D -->|нет| E["GUARD BLOCKED"]
+    D -->|нет| E["GUARD BLOCKED (exit 2)"]
     D -->|да| F["PostToolUse"]
     F --> G["run-test-hook.sh"]
-    G --> H{тест успешен?}
-    H -->|нет| I["additionalContext: vitest FAILED"]
-    H -->|да| J["тишина"]
+    G --> H{TEST_CMD успешен?}
+    H -->|нет| I["additionalContext: TEST FAILED"]
+    H -->|да| J["тишина (mute the green)"]
     style E fill:#ffcccc
     style I fill:#ffcccc
     style J fill:#ccffcc
 ```
 
-### Skeleton → Instance
+### Ядро + языковые слои
 
 ```mermaid
 flowchart LR
-    A["skeleton/"] -->|"cp -r"| B["проект/.claude/"]
-    C[".harness.conf.example"] -->|"заполнить"| D[".harness.conf"]
-    B --> E["instance готов"]
-    D --> E
+    A["rules/common/*"] --> C["агент: универсальные правила"]
+    B["rules/lang/&lt;lang&gt;.md<br/>(paths-scoped)"] --> C
+    D["lang-packs/&lt;lang&gt;/<br/>(skills, docs)"] -.->|"опц. наложить"| E["instance"]
     style A fill:#e1f5ff
-    style E fill:#ccffcc
+    style B fill:#fff0d0
+    style D fill:#fff0d0
 ```
 
+### Дерево
 
 ```
 harness-template/
-├── CLAUDE.md                       ← правила для работы над самим шаблоном
-├── .claude/                        ← харнесс этой репы (dogfood)
-│   ├── guards/
-│   └── commands/
-├── skeleton/                       ← копируется в потребителя
+├── CLAUDE.md                       ← правила для работы над шаблоном (dogfood)
+├── .claude/                        ← харнесс этой репы; dogfood capture-flow
+│   └── skills/note/                ← /note живой (sensor/guard не нужны: нет билда/тестов)
+├── skeleton/                       ← КОПИРУЕТСЯ в потребителя
 │   ├── CLAUDE.md.template          ← роутер с плейсхолдерами
-│   ├── PACKAGE_CLAUDE.md.template  ← guide пакета с плейсхолдерами
+│   ├── PACKAGE_CLAUDE.md.template  ← guide пакета (generic)
 │   ├── .claude/
-│   │   ├── settings.json.template  ← хуки: SessionStart, PostToolUse, Stop
+│   │   ├── settings.json.template  ← хуки: PreToolUse, PostToolUse, SessionStart, Stop
 │   │   ├── guards/
-│   │   │   ├── block-zones.sh      ← читает READONLY_ZONES из .harness.conf
+│   │   │   ├── block-zones.sh      ← читает READONLY_ZONES
 │   │   │   └── run-test-hook.sh    ← читает WATCH_DIR + TEST_CMD
-│   │   ├── commands/
-│   │   │   ├── add-component.md    ← скаффолдинг компонента
-│   │   │   └── end-session.md      ← обновление лога в конце сессии
-│   │   └── docs/                   ← проектная память (JIT, по требованию)
-│   │       ├── ARCHITECTURE.md.template
-│   │       ├── REVIEW.md.template
-│   │       └── dev-guide.md.template
-│   ├── scripts/
-│   │   └── load-context.sh         ← SessionStart: грузит внешнюю вики
-│   ├── .cursor/
-│   │   └── hooks.json              ← делегирует к .claude/guards/
+│   │   ├── skills/                 ← команды (текущий стандарт)
+│   │   │   ├── note/               ← /note: capture в PENDING-NOTES.md
+│   │   │   ├── task/               ← /task: шаблон промпта
+│   │   │   └── end-session/        ← /end-session: triage + лог
+│   │   ├── rules/                  ← common-core + per-language
+│   │   │   ├── common/             ← workflow, testing, git (всегда)
+│   │   │   └── lang/               ← vue.md, go.md, php.md (paths-scoped)
+│   │   └── docs/                   ← проектная память (JIT)
+│   │       ├── ARCHITECTURE.md.template  ← generic
+│   │       ├── REVIEW.md.template        ← generic
+│   │       └── gotchas.md.template       ← реестр ловушек (§-нумерация)
+│   ├── lang-packs/                 ← языковые пакеты поверх ядра
+│   │   └── vue/                    ← пример: add-component, dev-guide, Vue-ревью
+│   ├── scripts/load-context.sh     ← SessionStart: грузит внешнюю вики (опц.)
+│   ├── .cursor/hooks.json          ← делегирует к .claude/guards/ (dual-tool)
 │   └── .harness.conf.example       ← все параметры с комментариями
-├── examples/minimal/               ← рабочий пример (клонируй и запусти)
-├── scripts/
-│   └── verify-harness.sh           ← smoke test (guard exit 2, sensor green)
-└── docs/
-    └── specify-implement-review.md ← методология Specify → Implement → Review
+├── examples/minimal/               ← рабочий минимальный пример
+├── scripts/verify-harness.sh       ← smoke test (guard exit 2, sensor green, /note)
+└── docs/specify-implement-review.md ← методология Specify → Implement → Review
 ```
+
+**Три яруса:** абстрактный `skeleton/` (ядро) → минимальный `examples/minimal/` →
+реальный instance (`turbo-omni/packages/ui-kit`, Vue).
+
+---
+
+## Language-agnostic: common-core + per-language
+
+Ядро универсально; стек добавляется тонким слоем, «специфика поверх общего»:
+
+| Слой | Что | Когда грузится |
+|------|-----|----------------|
+| `rules/common/*.md` | workflow, testing, git — любой стек | Всегда |
+| `rules/lang/<lang>.md` | идиомы языка (`paths:` frontmatter) | Только на совпавших файлах |
+| `lang-packs/<lang>/` | skills + docs под стек (напр. `/add-component`) | Опц. накладываешь при setup |
+
+Go/PHP/др. — пишешь свой `rules/lang/<lang>.md` (есть stub-примеры) и опционально
+lang-pack. Generic-ядро не трогаешь.
 
 ---
 
@@ -120,24 +175,44 @@ harness-template/
 
 ---
 
+## Capture-flow: наблюдения не теряются
+
+Наблюдение всплывает в середине работы — записать сразу, разобрать потом.
+
+```
+/note hex в CSS не ловится ни guard ни sensor   →  append в .claude/PENDING-NOTES.md
+/note [generic] sensor молчит при exit 0            (timestamp, без LLM-раунда)
+        │
+        ▼  (в конце сессии)
+/end-session → triage буфера:
+        one-off          → log.md
+        recurring rule   → §N в .claude/docs/gotchas.md
+        решение          → ADR в decisions.md
+        [generic]        → дублировать в слой template
+        → буфер очищен
+```
+
+`/note` исполняется через инлайн-bash (`!`...``) — детерминированно, без обращения к
+модели и без permission-промпта. Агент тоже кладёт наблюдения в буфер (через `append.sh`),
+не только пользователь. `gotchas.md` закрывает пробел: code-quality нарушения (токены,
+цвета, классы), которые ни линтер, ни sensor, ни guard не отлавливают.
+
+---
+
 ## Долгосрочная память: выбирай своё
 
-`load-context.sh` в скелетоне — пример одного подхода: грузить `overview.md` + `log.md` из внешней вики (TechWiki, Notion, Confluence).
-
-Это не стандарт. Три рабочих варианта:
+`load-context.sh` — пример одного подхода: грузить `overview.md` + `log.md` из внешней вики.
+Не стандарт. Три рабочих варианта:
 
 | Вариант | Где хранить | Когда выбирать |
 |---------|-------------|----------------|
-| `.claude/docs/` | В репо (в git) | Команда, CI-агенты, нужна версионируемость |
+| `.claude/docs/` | В репо (в git) | Команда, CI-агенты, версионируемость |
 | Внешняя вики | TechWiki / Notion / Confluence | Личный нарратив, кросс-проектный контекст |
 | Только CLAUDE.md | Нигде отдельно | Маленький проект, один разработчик |
 
-`.claude/docs/` грузится **по требованию** через `@.claude/docs/ARCHITECTURE.md` в промпте — не автоматически при старте. Это JIT (just-in-time): не засоряет контекст когда не нужен.
+`.claude/docs/` грузится по требованию через `@.claude/docs/ARCHITECTURE.md` — не автоматически.
 
-Шаблоны в `skeleton/.claude/docs/` — отправная точка. Выброси что не нужно, добавь своё.
-
-**Принцип один: агент надёжен настолько, насколько надёжна среда вокруг него.
-Как выстраивать эту среду — решаешь ты.**
+**Принцип один: агент надёжен настолько, насколько надёжна среда вокруг него.**
 
 ---
 
@@ -152,4 +227,4 @@ harness-template/
 ## Первый instance
 
 `turbo-omni/packages/ui-kit` — Vue 3 компонентная библиотека.
-Харнесс здесь — forcing function: шаблон считается готовым только когда ui-kit на нём реально работает.
+Forcing function: шаблон готов только когда ui-kit на нём реально работает.

@@ -54,7 +54,7 @@
   },
   "permissions": {
     "allow": [
-      "Bash(npx vitest related --run *)",
+      "Bash(<TEST_CMD> *)",
       "Bash(bash .claude/guards/*.sh)"
     ]
   }

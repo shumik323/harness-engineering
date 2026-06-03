@@ -1,6 +1,6 @@
-# Dev Guide — <PROJECT_NAME>
+# Dev Guide (Vue) — <PROJECT_NAME>
 
-> Загружать при добавлении нового компонента/модуля: `@.claude/docs/dev-guide.md`
+> Загружать при добавлении нового компонента: `@.claude/docs/dev-guide.md`
 
 ## Как добавить компонент
 

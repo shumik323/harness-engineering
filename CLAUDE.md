@@ -2,6 +2,9 @@
 
 Эта репо — **шаблон** харнессов Claude Code / Cursor. Ты работаешь внутри него.
 
+> **Dual-tool.** Шаблон рассчитан и на **Claude Code**, и на **Cursor** — оба в работе.
+> `.claude/` и `.cursor/hooks.json` делегируют к одним и тем же `guards/`-скриптам.
+
 ## Два слоя — не путать
 
 | Слой | Путь | Назначение |
@@ -11,6 +14,10 @@
 
 Изменяя `.claude/` — меняешь как работаешь ТУТ.
 Изменяя `skeleton/` — меняешь что получит потребитель.
+
+**Dogfood тут намеренно лёгкий:** в репе-шаблоне нет билда и тест-сьюта, поэтому
+sensor/guard не нужны. Но capture-flow догфудим — `.claude/skills/note/` живой,
+наблюдения по ходу работы над шаблоном кидаем в `/note`.
 
 ## Принципы
 
@@ -50,22 +57,29 @@
 ```
 skeleton/
 ├── CLAUDE.md.template          ← роутер с плейсхолдерами
+├── PACKAGE_CLAUDE.md.template  ← guide пакета (generic)
 ├── .claude/
 │   ├── settings.json.template  ← хуки: PreToolUse (guard), PostToolUse (sensor), SessionStart, Stop
 │   ├── guards/
 │   │   ├── block-zones.sh      ← блокирует READONLY_ZONES
 │   │   └── run-test-hook.sh    ← запускает TEST_CMD после Edit/Write
-│   ├── commands/
-│   │   ├── add-component.md    ← скаффолдинг компонента
-│   │   └── end-session.md      ← обновление лога в конце сессии
+│   ├── skills/                 ← команды-skills (текущий стандарт, не commands/)
+│   │   ├── note/               ← /note: capture в PENDING-NOTES.md
+│   │   ├── task/               ← /task: шаблон промпта
+│   │   └── end-session/        ← /end-session: triage + лог
+│   ├── rules/                  ← common-core + per-language (path-scoped)
+│   │   ├── common/             ← workflow, testing, git (грузятся всегда)
+│   │   └── lang/               ← vue.md, go.md, php.md (frontmatter paths:)
 │   └── docs/                   ← проектная память в git (JIT, по требованию)
-│       ├── ARCHITECTURE.md.template  ← стек, структура, паттерны
-│       ├── REVIEW.md.template        ← чеклист ревью
-│       └── dev-guide.md.template     ← как добавить компонент
+│       ├── ARCHITECTURE.md.template  ← generic: стек, структура, паттерны
+│       ├── REVIEW.md.template        ← generic чеклист ревью
+│       └── gotchas.md.template       ← реестр найденных ловушек (§-нумерация)
+├── lang-packs/                 ← языковые пакеты поверх ядра
+│   └── vue/                    ← пример: add-component skill, dev-guide, Vue-ревью
 ├── scripts/
 │   └── load-context.sh         ← SessionStart: грузит внешнюю вики (один из вариантов)
 ├── .cursor/
-│   └── hooks.json              ← делегирует к .claude/guards/
+│   └── hooks.json              ← делегирует к .claude/guards/ (dual-tool)
 └── .harness.conf.example       ← все параметры с комментариями
 ```
 

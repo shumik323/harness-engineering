@@ -1,0 +1,22 @@
+# Review Checklist (Vue) — <PROJECT_NAME>
+
+> Vue-специфичная добавка к generic-ревью `@.claude/docs/REVIEW.md`.
+> Загружать при ревью Vue-кода: `@.claude/docs/REVIEW-vue.md`
+
+## Компоненты / экспорт
+
+- [ ] Barrel `index.ts` создан / обновлён
+- [ ] Компонент добавлен в центральный `index.ts` пакета
+- [ ] Маркер-класс QA на корневом элементе
+
+## Типизация (Vue)
+
+- [ ] Props и Emits через generics (`defineProps<{...}>()`), не `defineProps({})`
+- [ ] Нет `any` без обоснования, нет `as`-cast без проверки
+
+## Стили
+
+- [ ] Только <STYLE_APPROACH> — нет инлайн hex/rgb в `background`/`color`
+- [ ] Нет `!important` без обоснования, нет magic numbers — только токены
+
+> Реестр найденных ловушек — `@.claude/docs/gotchas.md`.

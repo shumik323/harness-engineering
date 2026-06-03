@@ -1,12 +1,13 @@
+---
+name: add-component
+description: "Скаффолдинг нового Vue-компонента по эталонной структуре пакета (ui/model/lib/tests/stories + barrel)."
+disable-model-invocation: true
+argument-hint: "[ComponentName]"
+---
+
 # add-component
 
-Создаёт структуру нового компонента по эталону пакета.
-
-## Использование
-
-```
-/add-component <ComponentName>
-```
+Создаёт структуру нового Vue-компонента по эталону пакета.
 
 ## Что создаёт
 
@@ -45,6 +46,6 @@
 - [ ] Barrel `index.ts` создан с именованным экспортом
 - [ ] Компонент добавлен в центральный `index.ts` пакета
 - [ ] Story создана в `__stories__/`
-- [ ] Ревью по чеклисту: `@.claude/docs/REVIEW.md`
+- [ ] Ревью по чеклисту: `@.claude/docs/REVIEW-vue.md`
 - [ ] Snapshot-тест создан в `__tests__/`
 - [ ] Sensor запустил тесты — зелёные
