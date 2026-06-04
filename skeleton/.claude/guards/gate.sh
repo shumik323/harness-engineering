@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# Gate (Ярус 2/3): repo-wide проверка перед завершением хода и перед push.
+# Gate (Ярус 2): repo-wide проверка БЕЗ полных тестов — type-check + lint + build.
 # Sensor (run-test-hook.sh) пофайловый и реактивный — он НЕ ловит type-ошибки
 # по проекту, линт, сборку и поломки конфигов/зависимостей. Это делает gate.
+# Тесты на Stop намеренно не гоняем (медленно для каждого хода) — их закрывает
+# sensor. Полный прогон тестов добавляется отдельно на pre-push (Ярус 3, GATE_TEST_CMD,
+# см. .husky/pre-push) — там медленно допустимо.
 #
 # Использование:
 #   Stop hook (Claude Code) — stdin JSON со `stop_hook_active`. exit 2 → ход
@@ -9,7 +12,7 @@
 #   husky pre-push / руками — без stdin. exit != 0 → push блокируется.
 #
 # Конфиг (.harness.conf):
-#   GATE_CMD     — полная проверка (напр. "turbo type-check lint build"). Пусто → fail-open.
+#   GATE_CMD     — проверка без тестов (напр. "turbo type-check lint build"). Пусто → fail-open.
 #   GATE_WORKDIR — откуда запускать (по умолчанию REPO_ROOT).
 
 set -euo pipefail

@@ -26,7 +26,7 @@ cp -r skeleton/.claude ./
 cp skeleton/.harness.conf.example .harness.conf
 
 # 2. Заполни .harness.conf под свой проект
-#    WATCH_DIR, READONLY_ZONES, TEST_CMD, WIKI_PATH
+#    WATCH_DIR, READONLY_ZONES, TEST_CMD, GATE_CMD, GATE_TEST_CMD, WIKI_PATH
 
 # 3. Сделай скрипты исполняемыми
 chmod +x .claude/guards/*.sh .claude/skills/note/append.sh
@@ -35,13 +35,22 @@ chmod +x .claude/guards/*.sh .claude/skills/note/append.sh
 cp skeleton/CLAUDE.md.template CLAUDE.md
 # Замени плейсхолдеры: <PROJECT_NAME>, <PACKAGE_PATH>, <STACK>, <TEST_CMD> ...
 
-# 5. (опц.) Наложи языковой пакет, если он есть под твой стек
+# 5. (Node-проекты) Ярус 3 — git-side gate на pre-push через husky
+cp skeleton/.husky/pre-push .husky/pre-push && chmod +x .husky/pre-push
+#    package.json: "prepare": "husky || true"   ← || true чтобы CI не падал (см. ниже)
+#    не-Node стек: повесь .claude/guards/gate.sh на свой pre-push вручную
+
+# 6. (опц.) Наложи языковой пакет, если он есть под твой стек
 cp -r skeleton/lang-packs/vue/skills/* .claude/skills/      # пример для Vue
 #    оставь нужный rules/lang/<lang>.md, удали лишние
 
-# 6. Проверь харнесс
+# 7. Проверь харнесс
 bash scripts/verify-harness.sh
 ```
+
+> **Husky в CI.** `"prepare": "husky"` падает в CI (`husky: not found`, exit 127) — git-хуки
+> там не нужны. Быстрый фикс — `"prepare": "husky || true"` (оставляет шумное сообщение в логах).
+> Чище — `HUSKY=0` в переменных CI или `.husky/install.mjs` с ранним выходом при `process.env.CI`.
 
 > **§5 — template = пример, не готовый инструмент.** `scripts/verify-harness.sh` читает
 > `.harness.conf`. Если в instance этого файла нет (зоны/пути захардкожены прямо в guard) —
@@ -146,7 +155,7 @@ harness-template/
 │   │   ├── guards/
 │   │   │   ├── block-zones.sh      ← guard: читает READONLY_ZONES
 │   │   │   ├── run-test-hook.sh    ← sensor: WATCH_DIR + TEST_CMD (пофайлово)
-│   │   │   └── gate.sh             ← gate: GATE_CMD repo-wide (Stop + pre-push, loop-safe)
+│   │   │   └── gate.sh             ← gate Ярус 2: GATE_CMD без тестов (Stop + база pre-push, loop-safe)
 │   │   ├── skills/                 ← команды (текущий стандарт)
 │   │   │   ├── note/               ← /note: capture в PENDING-NOTES.md
 │   │   │   ├── task/               ← /task: шаблон промпта
@@ -195,7 +204,8 @@ lang-pack. Generic-ядро не трогаешь.
 | `WATCH_DIR` | Директория для sensor-хука | `packages/ui-kit/lib` |
 | `READONLY_ZONES` | Запрещённые для записи зоны | `dist storybook-static` |
 | `TEST_CMD` | Команда сенсора (пофайлово) | `vitest related --run` |
-| `GATE_CMD` | Команда gate (repo-wide: typecheck+lint+build) | `turbo type-check lint build` |
+| `GATE_CMD` | Gate Ярус 2 (Stop + база pre-push): typecheck+lint+build, **без тестов** | `turbo type-check lint build` |
+| `GATE_TEST_CMD` | Gate Ярус 3 (только pre-push): полные тесты поверх `GATE_CMD` | `turbo test` |
 | `WIKI_PATH` | Путь к долгосрочной памяти | `/path/to/TechWiki/ui-kit-harness` |
 
 ---

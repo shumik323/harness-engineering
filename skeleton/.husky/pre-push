@@ -1,0 +1,15 @@
+#!/usr/bin/env sh
+# Ярус 3 (pre-push): gate (type-check + lint + build) + ПОЛНЫЕ тесты.
+# Stop-хук гоняет gate без тестов (быстро, для агента); push добавляет тесты —
+# редкое событие, медленно допустимо, turbo-кэш делает cache-hit мгновенным.
+# Husky v9: строка sourcing не нужна, файл — обычный shell-скрипт.
+
+# gate без тестов (как на Stop)
+bash ./.claude/guards/gate.sh || exit 1
+
+# полные тесты только на push (GATE_TEST_CMD из .harness.conf; пусто → пропустить)
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+[ -f "$REPO_ROOT/.harness.conf" ] && . "$REPO_ROOT/.harness.conf"
+if [ -n "${GATE_TEST_CMD:-}" ]; then
+  ( cd "$REPO_ROOT" && eval "$GATE_TEST_CMD" ) || exit 1
+fi

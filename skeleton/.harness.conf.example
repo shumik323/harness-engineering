@@ -22,13 +22,23 @@ READONLY_ZONES="dist"
 
 # --- Gate (Ярус 2/3) ---
 
-# Полная repo-wide проверка перед завершением хода (Stop hook) и перед push.
+# Ярус 2 (Stop hook + база pre-push): repo-wide проверка БЕЗ полных тестов.
 # Sensor пофайловый — он не ловит type-ошибки по проекту, линт, сборку и
 # поломки конфигов. Gate ловит. Пусто → fail-open (gate выключен).
-# Примеры:
+# Тестов тут нет намеренно: полный прогон медленный для каждого хода агента,
+# на Stop их закрывает sensor (TEST_CMD пофайлово). Примеры:
 #   turbo:  "turbo type-check lint build"
 #   npm:    "npm run type-check && npm run lint && npm run build"
 GATE_CMD="turbo type-check lint build"
+
+# Ярус 3 (только pre-push): полный прогон тестов поверх GATE_CMD.
+# Push — редкое событие, медленно допустимо; turbo-кэш делает cache-hit
+# почти мгновенным. Дыра, которую закрывает: массовый lint:fix/format через
+# Bash обходит sensor (он ловит только Edit/Write) → снапшоты/тесты ломаются
+# молча и всплывают только в CI. Пусто → тесты на push не гоняются. Примеры:
+#   turbo:  "turbo test"
+#   npm:    "npm run test"
+GATE_TEST_CMD="turbo test"
 
 # Откуда запускать GATE_CMD (по умолчанию REPO_ROOT). Обычно пусто.
 GATE_WORKDIR=""
