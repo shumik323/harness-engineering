@@ -55,18 +55,19 @@ bash scripts/verify-harness.sh
 
 ---
 
-## Текущие конвенции Claude Code (фактчек 2026-06)
+## Почему скелет так устроен
 
-Ядро следует актуальным практикам, не legacy:
+Три механизма Claude Code объясняют структуру папок. Скелет стоит на них.
 
-- **Skills, не commands.** Команды — `.claude/skills/<name>/SKILL.md` (frontmatter,
-  bundled-скрипты). `.claude/commands/*.md` ещё работает, но это legacy.
-- **Path-scoped rules.** `.claude/rules/*.md`; frontmatter `paths:` грузит правило только
-  на совпавших файлах. Без `paths` — грузится всегда (приоритет как у `.claude/CLAUDE.md`).
-- **CLAUDE.md ≤ 200 строк.** Раздутый файл хуже соблюдается. Тяжёлое знание → skills/rules/docs.
-- **Хуки vs CLAUDE.md.** CLAUDE.md — совет; хук — детерминированное действие. «Должно
-  случиться каждый раз без исключений» → хук, не инструкция.
-- **Verify before ship.** У агента всегда есть проверка, которую можно запустить.
+- **Skills, а не commands.** Команда живёт в `.claude/skills/<name>/SKILL.md`: frontmatter,
+  bundled-скрипты, автономный вызов агентом. `.claude/commands/*.md` ещё работает, но это legacy.
+- **Path-scoped rules.** Правило в `.claude/rules/*.md` с frontmatter `paths:` грузится только
+  на совпавших файлах. Без `paths` грузится всегда. Так тяжёлое знание не висит в контексте постоянно.
+- **Хуки решают, CLAUDE.md советует.** «Должно случаться каждый раз» — это хук (детерминированно,
+  exit-код). Поэтому guard/sensor/gate живут скриптами, а не строчкой в инструкции.
+
+Док: [skills & slash commands](https://code.claude.com/docs/en/skills),
+[memory & rules](https://code.claude.com/docs/en/memory).
 
 ---
 
