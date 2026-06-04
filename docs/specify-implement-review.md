@@ -87,7 +87,8 @@ Review    →  чеклист пройден                 →  Done
 |-------------------|------|
 | CLAUDE.md — access rules | Specify (что можно трогать) |
 | Guard (block-zones.sh) | Implement (физическая защита) |
-| Sensor (run-test-hook.sh) | Implement (обратная связь) |
+| Sensor (run-test-hook.sh) | Implement (обратная связь, пофайлово) |
+| Gate (gate.sh) | Выход Implement (repo-wide: typecheck+lint+build) |
 | REVIEW.md + `/code-review` | Review |
 | end-session | После Done (фиксируем в вики) |
 
@@ -97,6 +98,26 @@ Review    →  чеклист пройден                 →  Done
 
 Не только миграции. Любая задача где есть критерий готовности — это применимо.
 
-QA: sensor-хуки = quality gate после каждого сохранения, не конца спринта.
+QA: sensor-хуки = быстрая обратная связь после каждого сохранения, не конца спринта.
 Backend: access control работает в любом монорепо.
 Greenfield: SDD флоу применим везде.
+
+---
+
+## Два разных контроля: sensor ≠ gate
+
+Их легко перепутать — оба «гоняют проверки». Но они на разных ярусах.
+
+| | Sensor (Ярус 1) | Gate (Ярус 2/3) |
+|---|---|---|
+| Триггер | PostToolUse, после каждого Edit | Stop (конец хода) + husky pre-push |
+| Охват | пофайлово (`vitest related`) | repo-wide (typecheck + lint + build) |
+| Ловит | регресс в тронутом файле | type-ошибки по проекту, линт, сборку, **поломки конфигов/зависимостей** |
+| Поведение | mute the green, exit 1 | exit 2 (блокирует ход/push) |
+
+**Почему нужны оба.** Sensor реактивный и пофайловый: правка `package.json`
+(удаление зависимости) не «related» ни к одному тесту → sensor молчит, билд
+падает насквозь. Gate ловит именно это — на выходе из Implement и перед push.
+
+Защита от петли: Stop-gate проверяет `stop_hook_active` — второй проход
+(агент уже в forced-continuation) → exit 0, иначе бесконечный цикл.

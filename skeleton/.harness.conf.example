@@ -20,6 +20,19 @@ TEST_CMD="vitest related --run"
 # Хук block-zones.sh вернёт exit 2 при попытке записи в эти пути.
 READONLY_ZONES="dist"
 
+# --- Gate (Ярус 2/3) ---
+
+# Полная repo-wide проверка перед завершением хода (Stop hook) и перед push.
+# Sensor пофайловый — он не ловит type-ошибки по проекту, линт, сборку и
+# поломки конфигов. Gate ловит. Пусто → fail-open (gate выключен).
+# Примеры:
+#   turbo:  "turbo type-check lint build"
+#   npm:    "npm run type-check && npm run lint && npm run build"
+GATE_CMD="turbo type-check lint build"
+
+# Откуда запускать GATE_CMD (по умолчанию REPO_ROOT). Обычно пусто.
+GATE_WORKDIR=""
+
 # --- Memory ---
 
 # Путь к долгосрочной памяти проекта в TechWiki (или другой вики).
