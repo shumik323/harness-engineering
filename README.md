@@ -2,7 +2,7 @@
 
 Language-agnostic шаблон харнесса для **Claude Code** и **Cursor**.
 
-Харнесс = `CLAUDE.md` + хуки (guard/sensor) + skills + path-scoped rules + связь с
+Харнесс = `CLAUDE.md` + хуки (guard/sensor/gate) + skills + path-scoped rules + связь с
 долгосрочной памятью. Ядро не зависит от стека: подходит Vue, Go, PHP, бэкенду, лидам.
 Языковая специфика — отдельным слоем (`rules/lang/` + `lang-packs/`).
 
@@ -93,13 +93,19 @@ flowchart TD
     C --> D{разрешено?}
     D -->|нет| E["GUARD BLOCKED (exit 2)"]
     D -->|да| F["PostToolUse"]
-    F --> G["run-test-hook.sh"]
+    F --> G["run-test-hook.sh (sensor, пофайлово)"]
     G --> H{TEST_CMD успешен?}
     H -->|нет| I["additionalContext: TEST FAILED"]
     H -->|да| J["тишина (mute the green)"]
+    K["Stop (конец хода)"] --> L["gate.sh (repo-wide)"]
+    L --> M{GATE_CMD успешен?}
+    M -->|нет| N["GATE FAILED (exit 2): ход не завершить"]
+    M -->|да| O["ход завершается"]
     style E fill:#ffcccc
     style I fill:#ffcccc
     style J fill:#ccffcc
+    style N fill:#ffcccc
+    style O fill:#ccffcc
 ```
 
 ### Ядро + языковые слои
@@ -125,10 +131,11 @@ harness-template/
 │   ├── CLAUDE.md.template          ← роутер с плейсхолдерами
 │   ├── PACKAGE_CLAUDE.md.template  ← guide пакета (generic)
 │   ├── .claude/
-│   │   ├── settings.json.template  ← хуки: PreToolUse, PostToolUse, SessionStart, Stop
+│   │   ├── settings.json.template  ← хуки: PreToolUse(guard), PostToolUse(sensor), Stop(gate), SessionStart/End
 │   │   ├── guards/
-│   │   │   ├── block-zones.sh      ← читает READONLY_ZONES
-│   │   │   └── run-test-hook.sh    ← читает WATCH_DIR + TEST_CMD
+│   │   │   ├── block-zones.sh      ← guard: читает READONLY_ZONES
+│   │   │   ├── run-test-hook.sh    ← sensor: WATCH_DIR + TEST_CMD (пофайлово)
+│   │   │   └── gate.sh             ← gate: GATE_CMD repo-wide (Stop + pre-push, loop-safe)
 │   │   ├── skills/                 ← команды (текущий стандарт)
 │   │   │   ├── note/               ← /note: capture в PENDING-NOTES.md
 │   │   │   ├── task/               ← /task: шаблон промпта
@@ -176,7 +183,8 @@ lang-pack. Generic-ядро не трогаешь.
 |-----------|----------|-----------------|
 | `WATCH_DIR` | Директория для sensor-хука | `packages/ui-kit/lib` |
 | `READONLY_ZONES` | Запрещённые для записи зоны | `dist storybook-static` |
-| `TEST_CMD` | Команда тестов | `vitest related --run` |
+| `TEST_CMD` | Команда сенсора (пофайлово) | `vitest related --run` |
+| `GATE_CMD` | Команда gate (repo-wide: typecheck+lint+build) | `turbo type-check lint build` |
 | `WIKI_PATH` | Путь к долгосрочной памяти | `/path/to/TechWiki/ui-kit-harness` |
 
 ---

@@ -49,7 +49,8 @@ sensor/guard не нужны. Но capture-flow догфудим — `.claude/sk
 |-----------|----------|-----------------|
 | `WATCH_DIR` | Где sensor следит за изменениями | `packages/ui-kit/lib` |
 | `READONLY_ZONES` | Что guard блокирует | `dist storybook-static` |
-| `TEST_CMD` | Команда сенсора | `vitest related --run` |
+| `TEST_CMD` | Команда сенсора (пофайлово) | `vitest related --run` |
+| `GATE_CMD` | Команда gate (repo-wide: typecheck+lint+build) | `turbo type-check lint build` |
 | `WIKI_PATH` | Путь к долгосрочной памяти | `/Users/.../TechWiki/ui-kit-harness/` |
 
 ## Структура skeleton/
@@ -59,10 +60,11 @@ skeleton/
 ├── CLAUDE.md.template          ← роутер с плейсхолдерами
 ├── PACKAGE_CLAUDE.md.template  ← guide пакета (generic)
 ├── .claude/
-│   ├── settings.json.template  ← хуки: PreToolUse (guard), PostToolUse (sensor), SessionStart, Stop
+│   ├── settings.json.template  ← хуки: PreToolUse (guard), PostToolUse (sensor), Stop (gate), SessionStart/End
 │   ├── guards/
 │   │   ├── block-zones.sh      ← блокирует READONLY_ZONES
-│   │   └── run-test-hook.sh    ← запускает TEST_CMD после Edit/Write
+│   │   ├── run-test-hook.sh    ← sensor: TEST_CMD после Edit/Write (пофайлово)
+│   │   └── gate.sh             ← gate: GATE_CMD на Stop + pre-push (repo-wide, loop-safe)
 │   ├── skills/                 ← команды-skills (текущий стандарт, не commands/)
 │   │   ├── note/               ← /note: capture в PENDING-NOTES.md
 │   │   ├── task/               ← /task: шаблон промпта
