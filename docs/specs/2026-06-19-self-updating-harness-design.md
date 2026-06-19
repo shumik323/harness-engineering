@@ -70,8 +70,9 @@ harness-template  ← правка проходит ревью, становит
 
 ## Версионирование
 
-`HARNESS_VERSION` добавляется в `.harness.conf` (сейчас версии нет). Copier пишет версию
-шаблона в `.copier-answers.yml` инстанса.
+Источник версии инстанса — `.copier-answers.yml` (его пишет Copier при copier copy/update).
+~~Дублирующий `HARNESS_VERSION` в `.harness.conf`~~ — отклонено 2026-06-19: мёртвое поле, никто
+не читает, молча расходится с copier-answers.
 
 ## Фазы реализации
 

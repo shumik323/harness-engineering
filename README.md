@@ -96,6 +96,12 @@ bash scripts/verify-harness.sh
 > generic-скрипт после переноса в instance проверяй прогоном: молчащий/падающий скрипт в
 > репе хуже его отсутствия — создаёт ложное чувство покрытия.
 
+> **Python — перевесь sensor-хук.** `settings.json` по умолчанию шьёт `run-test-hook.sh`
+> (vitest/jest, режим related). Для Python замени в нём PostToolUse-команду на
+> `run-pytest-hook.sh` — иначе `pytest <исходник>` соберёт 0 тестов и даст ложные «Tests FAILED»
+> на каждой правке не-теста. Хук доставляется в Python-инстанс автоматически (copier при
+> `lang=python`); детали пресета — в `.harness.conf.example`.
+
 ---
 
 ## Dual-tool: Claude Code + Cursor

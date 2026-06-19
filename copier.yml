@@ -21,8 +21,9 @@ _exclude:
   # fenris это доказал). Раскатка при init, обновления метода НЕ форсятся сверху.
   - ".claude/agents"
 
-  # run-pytest-hook is not in CORE list
-  - ".claude/guards/run-pytest-hook.sh"
+  # run-pytest-hook — Python-LANG sensor: доставляем ТОЛЬКО при lang=python (как lang-файлы ниже),
+  # а не исключаем глухо. Иначе Python-инстанс ссылается на хук, который синк не привозит.
+  - "{% if lang != 'python' %}.claude/guards/run-pytest-hook.sh{% endif %}"
 
   # md-libs lang file is not a standard LANG pack
   - ".claude/rules/lang/md-libs.md"

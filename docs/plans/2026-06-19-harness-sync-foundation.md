@@ -160,18 +160,13 @@ Expected: печатает версию Copier (например `copier 9.x`).
 
 Run: `echo "0.1.0" > harness-template/VERSION`
 
-- [ ] **Step 3: Добавить `HARNESS_VERSION` в `.harness.conf.example`**
+- [x] ~~**Step 3: Добавить `HARNESS_VERSION` в `.harness.conf.example`**~~ — ПЕРЕСМОТРЕНО 2026-06-19.
+  Поле оказалось мёртвым: Copier пишет версию в `.copier-answers.yml`, НЕ в `.harness.conf`, и
+  `HARNESS_VERSION` никто не читал (harness-status сверяет diff'ы файлов, не версию). Удалено;
+  `.harness.conf.example` теперь содержит комментарий-указатель на `.copier-answers.yml`. См. лог
+  [2026-06-19] fix в вики-проекте.
 
-Добавить строку после шапки:
-```bash
-# Версия CORE-слоя харнесса, из которой создан/обновлён инстанс. Пишется Copier.
-HARNESS_VERSION="0.1.0"
-```
-
-- [ ] **Step 4: Проверить**
-
-Run: `grep HARNESS_VERSION harness-template/skeleton/.harness.conf.example`
-Expected: строка найдена.
+- [x] ~~**Step 4: Проверить** (`grep HARNESS_VERSION ...`)~~ — снято вместе со Step 3.
 
 - [ ] **Step 5: Commit**
 

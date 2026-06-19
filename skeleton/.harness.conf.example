@@ -52,10 +52,10 @@ WIKI_PATH=""
 
 # --- Harness version ---
 
-# Версия CORE-слоя харнесса, из которой создан/обновлён инстанс.
-# Пишется Copier при `copier copy` / `copier update` (см. .copier-answers.yml).
-# Сверяется с harness-template/VERSION для выявления отставания.
-HARNESS_VERSION="0.1.0"
+# Реальная версия CORE — в `.copier-answers.yml` (её пишет Copier при copier copy/update).
+# Сверяй её с harness-template/VERSION для выявления отставания.
+# Отдельного HARNESS_VERSION здесь намеренно НЕТ: дублирующее поле никто не читает
+# (harness-status.sh сверяет diff'ы файлов, не версию) и оно молча расходится с .copier-answers.yml.
 
 # --- Repo ---
 
@@ -67,6 +67,9 @@ REPO_ROOT="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 # В Python нет шага build → gate = lint + typecheck (без build).
 # Sensor использует .claude/guards/run-pytest-hook.sh (не run-test-hook.sh):
 # у pytest нет нативного "related tests", выбор тестов решает PYTEST_MODE.
+# ВАЖНО: settings.json по умолчанию шьёт run-test-hook.sh в PostToolUse. Для Python
+# замени там команду на run-pytest-hook.sh — иначе `pytest <исходник>` соберёт 0 тестов
+# и даст ложные «Tests FAILED» на каждой правке не-теста.
 #
 # WATCH_DIR="src"
 # TEST_CMD="uv run pytest -q"          # без uv: "pytest -q"
