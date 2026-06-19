@@ -18,6 +18,44 @@ Language-agnostic шаблон харнесса для **Claude Code** и **Curs
 
 ---
 
+## Scope: что входит, что — концерн instance
+
+Это **supervised-харнесс** (человек на цикле), не автономный loop-runner. Набор сознательно MVP — «строй от отказов».
+
+**Входит в шаблон:** guides (CLAUDE.md, rules, skills), sensors (guard/sensor/gate, mute the green), state (capture-flow `/note` → `/end-session`, gotchas), SDD (specify → implement → review), context engineering (path-scoped rules, JIT-docs), dual-tool Claude + Cursor.
+
+**Входит частично:** `skeleton/.claude/agents/bug-triage.md` — read-only triage-роль (нативный
+субагент Claude Code), обобщена из боевого проекта. Это reference-by-copy scaffold (instance-owned,
+вне Copier-синка), не авто-доставка. См. `skeleton/.claude/agents/README.md`.
+
+**Концерн instance, не шаблона** — добавляется в конкретном проекте по реальной боли:
+- Loop-automations, worktrees — автономный цикл на таймере
+- Multi-agent orchestration — supervisor/workers, роли verifier/bugfixer
+- MCP-интеграции — коннекторы к внешним системам проекта
+- Eval-слой (LLM-judge, golden dataset) — зависит от домена
+
+Это не пробелы, а граница: шаблон даёт фундамент, instance достраивает под стек и задачу.
+
+---
+
+## Версионируемый sync (Copier)
+
+CORE-слой (guards, skills/{note,end-session,task}, rules/common) синкается через
+[Copier](https://copier.readthedocs.io). Установка один раз:
+
+```bash
+brew install pipx && pipx ensurepath
+pipx install copier
+```
+
+Версия CORE в `VERSION`; инстанс помнит свою в `.copier-answers.yml` и тянет обновления
+`copier update`. Дрейф CORE проверяется `scripts/harness-status.sh <instance>`.
+Ручной `cp`-setup ниже — для слоёв вне CORE и первичной раскатки.
+
+**Обратный канал (инстанс → шаблон):** улучшение CORE, найденное в инстансе, поднимается
+`scripts/harness-contribute.sh <instance>` (копирует CORE-изменения + печатает diff; git/PR за
+человеком). Карта инстансов и их дрейфа — `REGISTRY.md`.
+
 ## 5-шаговый setup
 
 ```bash

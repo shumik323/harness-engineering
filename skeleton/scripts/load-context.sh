@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # SessionStart hook: loads long-term memory into Claude's context.
 # Reads WIKI_PATH from .harness.conf → outputs overview.md + tail of log.md.
+#
+# SessionStart accepts ONLY command-type hooks (no conversation context exists at
+# start → prompt-type hooks error out). Claude Code injects raw stdout into context.
+# Do NOT wire this to Cursor sessionStart: Cursor needs JSON {"additional_context": ...}
+# (not raw stdout) and its injection is buggy — that's why skeleton/.cursor/hooks.json
+# has no sessionStart. (fenris learnings §65)
 
 set -euo pipefail
 

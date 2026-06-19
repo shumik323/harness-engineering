@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# Сторонние методологии — не часть шаблона (см. rules/common/methodology-routing.md)
+.superpowers/
+
+# Copier: артефакт рендера, если случайно запущен в корне шаблона
+# (skeleton/.copier-answers.yml.jinja — НЕ игнорировать, это источник)
+/.copier-answers.yml
+
+# Node (защитно — в шаблоне нет, но инстансы тянут)
+node_modules/
+*.log
+
+# Локальное окружение
+.env
+.env.local
+
+# Временные/скретч
+*.orig
+*.tmp

@@ -50,8 +50,28 @@ GATE_WORKDIR=""
 # Пример: "/Users/shumik/Desktop/TechWiki/wiki/projects/ui-kit-harness"
 WIKI_PATH=""
 
+# --- Harness version ---
+
+# Версия CORE-слоя харнесса, из которой создан/обновлён инстанс.
+# Пишется Copier при `copier copy` / `copier update` (см. .copier-answers.yml).
+# Сверяется с harness-template/VERSION для выявления отставания.
+HARNESS_VERSION="0.1.0"
+
 # --- Repo ---
 
 # Корень репозитория (обычно $PWD при запуске хука).
 # Переопределяй только если структура нестандартная.
 REPO_ROOT="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+
+# --- Python preset (раскомментируй вместо turbo/npm выше) ---
+# В Python нет шага build → gate = lint + typecheck (без build).
+# Sensor использует .claude/guards/run-pytest-hook.sh (не run-test-hook.sh):
+# у pytest нет нативного "related tests", выбор тестов решает PYTEST_MODE.
+#
+# WATCH_DIR="src"
+# TEST_CMD="uv run pytest -q"          # без uv: "pytest -q"
+# PYTEST_MODE="testmon"                # testmon (граф зависимостей) | map (парный тест)
+# READONLY_ZONES="__pycache__ .pytest_cache .mypy_cache .ruff_cache dist build .egg-info .venv"
+#   # RAG-проект: добавь генерируемые "chroma_db data"
+# GATE_CMD="uv run ruff check . && uv run ruff format --check . && uv run mypy ."
+# GATE_TEST_CMD="uv run pytest"        # полный прогон на pre-push (Ярус 3)

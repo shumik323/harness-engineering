@@ -1,0 +1,44 @@
+_subdirectory: skeleton
+_answers_file: .copier-answers.yml
+
+_exclude:
+  # ВНИМАНИЕ: это blacklist, не whitelist (Copier не поддерживает re-include после "*").
+  # Новый НЕ-CORE файл в skeleton/ просочится в инстанс, пока не добавлен сюда.
+  # После добавления файлов в skeleton — сверяйся с CORE_PATHS (scripts/lib/layers.sh)
+  # и рендером: `copier copy --data lang=vue . /tmp/x --defaults --trust && find /tmp/x -type f`.
+  # Non-CORE skeleton files — template scaffolding
+  - "*.template"
+  - "lang-packs"
+  - "scripts"
+  - ".husky"
+  - ".cursor"
+  - ".harness.conf.example"
+
+  # Non-CORE .claude subdirs
+  - ".claude/docs"
+  - ".claude/settings.json.template"
+  # Роли-агенты — instance-owned scaffold (инстанс кастомизирует под свой стек/KB,
+  # fenris это доказал). Раскатка при init, обновления метода НЕ форсятся сверху.
+  - ".claude/agents"
+
+  # run-pytest-hook is not in CORE list
+  - ".claude/guards/run-pytest-hook.sh"
+
+  # md-libs lang file is not a standard LANG pack
+  - ".claude/rules/lang/md-libs.md"
+
+  # Exclude each lang file that is NOT the selected lang
+  - "{% if lang != 'vue' %}.claude/rules/lang/vue.md{% endif %}"
+  - "{% if lang != 'go' %}.claude/rules/lang/go.md{% endif %}"
+  - "{% if lang != 'php' %}.claude/rules/lang/php.md{% endif %}"
+  - "{% if lang != 'python' %}.claude/rules/lang/python.md{% endif %}"
+
+project_name:
+  type: str
+  help: Имя проекта-инстанса
+
+lang:
+  type: str
+  help: Языковой пак
+  choices: [vue, go, php, python, none]
+  default: vue
