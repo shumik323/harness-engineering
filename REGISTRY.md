@@ -12,6 +12,11 @@ LANG (rules/lang/*) и LOCAL (CLAUDE.md, docs, проектные skills) — н
 | turbo-omni | md/omni/terra | — | сильный: 6 DIVERGED (guards+skills) + 3 MISSING (rules/common/*) |
 | fenris-frontend-vue | affiliate/fenris-frontend-vue | — | вне итерации — приведён в отдельной ветке, интегрируется после мержа |
 
+## Задачи
+
+- [ ] [P1] Раскатать `v0.1.1` в инстансы: `copier update` + `harness-status.sh` для проверки дрейфа после (abdulpay, fenris, turbo-omni). turbo-omni — сильный дрейф, лить осознанно (вероятны конфликты Copier).
+- [ ] [P2] Перенести FSD-правило из CORE `workflow.md` в LANG `vue.md` (FSD — фронтовая специфика, в CORE мёртвый груз для go/php/python), тег `v0.1.2`. После — `copier update` на abdulpay уберёт намеренный дрейф `workflow.md` (см. HANDOFF abdulpay).
+
 ## Как обновить эту таблицу
 
 ```bash
