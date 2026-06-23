@@ -1,6 +1,6 @@
 # Dev Guide (Vue) — <PROJECT_NAME>
 
-> Загружать при добавлении нового компонента: `@.claude/docs/dev-guide.md`
+> Читать при добавлении нового компонента (Read): `.claude/docs/dev-guide.md` — не `@import` (`@` грузит на старте).
 
 ## Как добавить компонент
 

@@ -15,8 +15,10 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PASS=0
 FAIL=0
 
-ok()   { echo "  [PASS] $1"; ((PASS++)); }
-fail() { echo "  [FAIL] $1"; ((FAIL++)); }
+# NB: PASS=$((...)) не ((PASS++)) — `((expr))` возвращает exit 1 когда результат 0,
+# и под `set -e` это роняет скрипт на первом же ok()/fail() (счётчик стартует с 0).
+ok()   { echo "  [PASS] $1"; PASS=$((PASS + 1)); }
+fail() { echo "  [FAIL] $1"; FAIL=$((FAIL + 1)); }
 
 echo "=== verify-harness ==="
 echo ""

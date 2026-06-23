@@ -2,332 +2,75 @@
 
 Language-agnostic шаблон харнесса для **Claude Code** и **Cursor**.
 
-Харнесс = `CLAUDE.md` + хуки (guard/sensor/gate) + skills + path-scoped rules + связь с
-долгосрочной памятью. Ядро не зависит от стека: подходит Vue, Go, PHP, бэкенду, лидам.
+Харнесс = `CLAUDE.md` + хуки (guard / sensor / gate) + skills + path-scoped rules +
+связь с долгосрочной памятью. Ядро не зависит от стека: Vue, Go, PHP, бэкенд.
 Языковая специфика — отдельным слоем (`rules/lang/` + `lang-packs/`).
 
-# Зачем нужен
-Языковая модель по природе недетерминирована: мыслит токенами, выдаёт разные результаты, не знает специфики кодовой базы. Неструктурированные агенты застревают, галлюцинируют, незаметно ломают логику.
+## Зачем
 
-Харнесс компенсирует то, чего модель не может в одиночку:
+Модель недетерминирована: мыслит токенами, не знает специфики кодовой базы.
+Без структуры агент застревает, галлюцинирует, тихо ломает логику.
 
-- управление контекстом — не дать агенту попасть в «глупую зону» (dumb zone)
-- верификация — не доверять выводу, а проверять
-- оркестрация — разбивать длинные задачи на шаги с сохранением состояния
-- изоляция — безопасное выполнение в песочницах
+Харнесс компенсирует:
 
----
+- **Контекст** — не дать агенту попасть в «глупую зону».
+- **Верификация** — не доверять выводу, а проверять (хуки на exit-кодах).
+- **Оркестрация** — длинные задачи разбиты на шаги с сохранением состояния.
+- **Изоляция** — безопасное выполнение в песочницах.
 
-## Scope: что входит, что — концерн instance
+Это **supervised-харнесс** (человек на цикле), не автономный loop-runner.
+Набор сознательно MVP — «строй от отказов».
 
-Это **supervised-харнесс** (человек на цикле), не автономный loop-runner. Набор сознательно MVP — «строй от отказов».
-
----
-
-## С чего начать
-
-Новый в шаблоне? Вход за ~10 минут (дальше секции самодостаточны — читай по нужде):
-
-1. **Что это** — supervised-харнесс, человек на цикле, не автономный агент. См. **Scope** ниже.
-2. **Поставить** — скопировать ядро `skeleton/` и заполнить `.harness.conf`. См. **5-шаговый setup**.
-3. **Проверить, что живо** — `bash scripts/verify-harness.sh` (guard exit 2 · sensor green · gate).
-4. **Разобраться, как устроено** — дерево структуры + 3 диаграммы ниже.
-5. **Дальше** — свой стек: раздел **Language-agnostic**; обновления CORE — `copier update`.
-
-> Агенту вход — не здесь: его карта в `skeleton/CLAUDE.md.template` (раздел «Агенту на входе»).
-> README — для человека; агент грузит спеку из `CLAUDE.md` + `rules/common/`.
-
-**Входит в шаблон:** guides (CLAUDE.md, rules, skills), sensors (guard/sensor/gate, mute the green), state (capture-flow `/note` → `/end-session`, gotchas), SDD (specify → implement → review; `/plan`-шаблон), context engineering (path-scoped rules, JIT-docs), dual-tool Claude + Cursor.
-
-**Входит частично:** `skeleton/.claude/agents/bug-triage.md` — read-only triage-роль (нативный
-субагент Claude Code), обобщена из боевого проекта. Это reference-by-copy scaffold (instance-owned,
-вне Copier-синка), не авто-доставка. См. `skeleton/.claude/agents/README.md`.
-
-**Концерн instance, не шаблона** — добавляется в конкретном проекте по реальной боли:
-- Loop-automations, worktrees — автономный цикл на таймере
-- Multi-agent orchestration — supervisor/workers, роли verifier/bugfixer
-- MCP-интеграции — коннекторы к внешним системам проекта
-- Eval-слой (LLM-judge, golden dataset) — зависит от домена
-
-Это не пробелы, а граница: шаблон даёт фундамент, instance достраивает под стек и задачу.
-
----
-
-## Версионируемый sync (Copier)
-
-CORE-слой (guards, skills/{plan,rename,note,end-session,task}, rules/common) синкается через
-[Copier](https://copier.readthedocs.io). Установка один раз:
+## Setup (5 шагов)
 
 ```bash
-brew install pipx && pipx ensurepath
-pipx install copier
-```
-
-Версия CORE = git-тег темплейта (`vX.Y.Z`); инстанс помнит свою в `.copier-answers.yml` и тянет обновления
-`copier update`. Дрейф CORE проверяется `scripts/harness-status.sh <instance>`.
-Ручной `cp`-setup ниже — для слоёв вне CORE и первичной раскатки.
-
-**Обратный канал (инстанс → шаблон):** улучшение CORE, найденное в инстансе, поднимается
-`scripts/harness-contribute.sh <instance>` (копирует CORE-изменения + печатает diff; git/PR за
-человеком). Карта инстансов и их дрейфа — `REGISTRY.md`.
-
-## 5-шаговый setup
-
-```bash
-# 1. Скопируй ядро skeleton в корень своего проекта
+# 1. Скопируй ядро в корень своего проекта
 cp -r skeleton/.claude ./
 cp skeleton/.harness.conf.example .harness.conf
 
-# 2. Заполни .harness.conf под свой проект
-#    WATCH_DIR, READONLY_ZONES, TEST_CMD, GATE_CMD, GATE_TEST_CMD, WIKI_PATH
+# 2. Заполни .harness.conf под свой проект.
+#    Все параметры с комментариями — внутри самого файла.
 
 # 3. Сделай скрипты исполняемыми
 chmod +x .claude/guards/*.sh .claude/skills/note/append.sh
 
-# 4. Создай CLAUDE.md из шаблона
+# 4. Создай CLAUDE.md из шаблона и замени плейсхолдеры
 cp skeleton/CLAUDE.md.template CLAUDE.md
-# Замени плейсхолдеры: <PROJECT_NAME>, <PACKAGE_PATH>, <STACK>, <TEST_CMD> ...
 
-# 5. (Node-проекты) Ярус 3 — git-side gate на pre-push через husky
+# 5. (Node) git-side gate на pre-push через husky
 cp skeleton/.husky/pre-push .husky/pre-push && chmod +x .husky/pre-push
-#    package.json: "prepare": "husky || true"   ← || true чтобы CI не падал (см. ниже)
-#    не-Node стек: повесь .claude/guards/gate.sh на свой pre-push вручную
+#    package.json: "prepare": "husky || true"   (|| true чтобы CI не падал)
+#    не-Node стек: повесь .claude/guards/gate.sh на pre-push вручную
 
-# 6. (опц.) Наложи языковой пакет, если он есть под твой стек
-cp -r skeleton/lang-packs/vue/skills/* .claude/skills/      # пример для Vue
-#    оставь нужный rules/lang/<lang>.md, удали лишние
+# (опц.) языковой пакет под свой стек
+cp -r skeleton/lang-packs/vue/skills/* .claude/skills/
+```
 
-# 7. Проверь харнесс
+> Версионируемый sync ядра — через [Copier](https://copier.readthedocs.io)
+> (`copier update`). Установка и обратный канал — в [docs/architecture.md](docs/architecture.md).
+
+## Проверить, что живо
+
+```bash
 bash scripts/verify-harness.sh
 ```
 
-> **Husky в CI.** `"prepare": "husky"` падает в CI (`husky: not found`, exit 127) — git-хуки
-> там не нужны. Быстрый фикс — `"prepare": "husky || true"` (оставляет шумное сообщение в логах).
-> Чище — `HUSKY=0` в переменных CI или `.husky/install.mjs` с ранним выходом при `process.env.CI`.
+Smoke-тест: guard блокирует запись в readonly-зону (exit 2), sensor зелёный,
+gate, `/note`. Требует заполненного `.harness.conf` в проекте.
 
-> **§5 — template = пример, не готовый инструмент.** `scripts/verify-harness.sh` читает
-> `.harness.conf`. Если в instance этого файла нет (зоны/пути захардкожены прямо в guard) —
-> перепиши verify под чтение зон из своего `block-zones.sh`, не копируй вслепую. Любой
-> generic-скрипт после переноса в instance проверяй прогоном: молчащий/падающий скрипт в
-> репе хуже его отсутствия — создаёт ложное чувство покрытия.
+## Что дальше
 
-> **Python — перевесь sensor-хук.** `settings.json` по умолчанию шьёт `run-test-hook.sh`
-> (vitest/jest, режим related). Для Python замени в нём PostToolUse-команду на
-> `run-pytest-hook.sh` — иначе `pytest <исходник>` соберёт 0 тестов и даст ложные «Tests FAILED»
-> на каждой правке не-теста. Хук доставляется в Python-инстанс автоматически (copier при
-> `lang=python`); детали пресета — в `.harness.conf.example`.
+- **Как устроено** — диаграммы, дерево, dual-tool, языковые слои, память,
+  capture-flow, Copier-sync → [docs/architecture.md](docs/architecture.md)
+- **Параметры конфига** — самодокументированы в
+  [skeleton/.harness.conf.example](skeleton/.harness.conf.example)
+- **Методология Specify → Implement → Review** →
+  [docs/specify-implement-review.md](docs/specify-implement-review.md)
+- **Архитектурные решения (ADR)** → [docs/decisions.md](docs/decisions.md)
+- Агенту вход — не здесь, а в `skeleton/CLAUDE.md.template` (раздел «Агенту на входе»).
 
----
+## Когда НЕ нужно
 
-## Dual-tool: Claude Code + Cursor
-
-Оба инструмента в работе. Хуки настраиваются в обоих, но указывают на **одни и те же**
-скрипты `guards/` — логика не дублируется:
-
-| Инструмент | Конфиг | Механика |
-|-----------|--------|----------|
-| Claude Code | `.claude/settings.json` | `PreToolUse`/`PostToolUse` → `bash guards/*.sh` |
-| Cursor | `.cursor/hooks.json` | `postToolUse` (exit 2 блокирует) → те же `guards/*.sh` |
-
-Меняешь guard-логику один раз в скрипте — работает в обоих.
-
----
-
-## Почему скелет так устроен
-
-Три механизма Claude Code объясняют структуру папок. Скелет стоит на них.
-
-- **Skills, а не commands.** Команда живёт в `.claude/skills/<name>/SKILL.md`: frontmatter,
-  bundled-скрипты, автономный вызов агентом. `.claude/commands/*.md` ещё работает, но это legacy.
-- **Path-scoped rules.** Правило в `.claude/rules/*.md` с frontmatter `paths:` грузится только
-  на совпавших файлах. Без `paths` грузится всегда. Так тяжёлое знание не висит в контексте постоянно.
-- **Хуки решают, CLAUDE.md советует.** «Должно случаться каждый раз» — это хук (детерминированно,
-  exit-код). Поэтому guard/sensor/gate живут скриптами, а не строчкой в инструкции.
-
-Док: [skills & slash commands](https://code.claude.com/docs/en/skills),
-[memory & rules](https://code.claude.com/docs/en/memory).
-
----
-
-## Структура репо
-
-> Диаграммы и дерево обновляются вручную при изменении структуры (правило в `CLAUDE.md`).
-
-### Два слоя репо
-
-```mermaid
-flowchart LR
-    A[".claude/"] --> B["правила для работы над шаблоном (dogfood)"]
-    C["skeleton/"] --> D["копируется в потребителя (ui-kit и др.)"]
-    style A fill:#f0f0f0
-    style C fill:#e1f5ff
-```
-
-### Runtime flow
-
-```mermaid
-flowchart TD
-    A["Edit/Write/Bash"] --> B["PreToolUse"]
-    B --> C["block-zones.sh"]
-    C --> D{разрешено?}
-    D -->|нет| E["GUARD BLOCKED (exit 2)"]
-    D -->|да| F["PostToolUse"]
-    F --> G["run-test-hook.sh (sensor, пофайлово)"]
-    G --> H{TEST_CMD успешен?}
-    H -->|нет| I["additionalContext: TEST FAILED"]
-    H -->|да| J["тишина (mute the green)"]
-    K["Stop (конец хода)"] --> L["gate.sh (repo-wide)"]
-    L --> M{GATE_CMD успешен?}
-    M -->|нет| N["GATE FAILED (exit 2): ход не завершить"]
-    M -->|да| O["ход завершается"]
-    P["UserPromptSubmit"] --> Q["nudge.sh"]
-    Q --> R{boundary-триггер?}
-    R -->|да| S["additionalContext: объяви verify-уровень"]
-    R -->|нет| T["тишина (exit 0)"]
-    style E fill:#ffcccc
-    style I fill:#ffcccc
-    style J fill:#ccffcc
-    style N fill:#ffcccc
-    style O fill:#ccffcc
-    style S fill:#fff0d0
-    style T fill:#ccffcc
-```
-
-### Ядро + языковые слои
-
-```mermaid
-flowchart LR
-    A["rules/common/*"] --> C["агент: универсальные правила"]
-    B["rules/lang/&lt;lang&gt;.md<br/>(paths-scoped)"] --> C
-    D["lang-packs/&lt;lang&gt;/<br/>(skills, docs)"] -.->|"опц. наложить"| E["instance"]
-    style A fill:#e1f5ff
-    style B fill:#fff0d0
-    style D fill:#fff0d0
-```
-
-### Дерево
-
-```
-harness-template/
-├── CLAUDE.md                       ← правила для работы над шаблоном (dogfood)
-├── .claude/                        ← харнесс этой репы; dogfood capture-flow
-│   └── skills/note/                ← /note живой (sensor/guard не нужны: нет билда/тестов)
-├── skeleton/                       ← КОПИРУЕТСЯ в потребителя
-│   ├── CLAUDE.md.template          ← роутер с плейсхолдерами
-│   ├── PACKAGE_CLAUDE.md.template  ← guide пакета (generic)
-│   ├── .claude/
-│   │   ├── settings.json.template  ← хуки: PreToolUse(guard), PostToolUse(sensor), Stop(gate), UserPromptSubmit(nudge), SessionStart/End
-│   │   ├── guards/
-│   │   │   ├── block-zones.sh      ← guard: читает READONLY_ZONES
-│   │   │   ├── run-test-hook.sh    ← sensor: WATCH_DIR + TEST_CMD (пофайлово)
-│   │   │   ├── gate.sh             ← gate Ярус 2: GATE_CMD без тестов (Stop + база pre-push, loop-safe)
-│   │   │   └── nudge.sh            ← nudge: UserPromptSubmit, boundary→verify-напоминание (exit 0, не блокирует)
-│   │   ├── skills/                 ← команды (текущий стандарт)
-│   │   │   ├── note/               ← /note: capture в PENDING-NOTES.md
-│   │   │   ├── task/               ← /task: шаблон промпта
-│   │   │   ├── plan/               ← /plan: шаблон плана (обязательные секции, авто-инвок)
-│   │   │   ├── rename/             ← /rename: ссылки до rename → атомарно (авто-инвок)
-│   │   │   └── end-session/        ← /end-session: triage + лог
-│   │   ├── rules/                  ← common-core + per-language
-│   │   │   ├── common/             ← workflow, testing, git, methodology-routing, context-hygiene (всегда)
-│   │   │   └── lang/               ← vue.md, go.md, php.md (paths-scoped)
-│   │   └── docs/                   ← проектная память (JIT)
-│   │       ├── ARCHITECTURE.md.template  ← generic
-│   │       ├── REVIEW.md.template        ← generic
-│   │       └── gotchas.md.template       ← реестр ловушек (§-нумерация)
-│   ├── lang-packs/                 ← языковые пакеты поверх ядра
-│   │   └── vue/                    ← пример: add-component, dev-guide, Vue-ревью
-│   ├── scripts/load-context.sh     ← SessionStart: грузит внешнюю вики (опц.)
-│   ├── .cursor/hooks.json          ← делегирует к .claude/guards/ (dual-tool)
-│   └── .harness.conf.example       ← все параметры с комментариями
-├── examples/minimal/               ← рабочий минимальный пример
-├── scripts/verify-harness.sh       ← smoke test (guard exit 2, sensor green, /note)
-└── docs/specify-implement-review.md ← методология Specify → Implement → Review
-```
-
-**Три яруса:** абстрактный `skeleton/` (ядро) → минимальный `examples/minimal/` →
-реальный instance (`turbo-omni/packages/ui-kit`, Vue).
-
----
-
-## Language-agnostic: common-core + per-language
-
-Ядро универсально; стек добавляется тонким слоем, «специфика поверх общего»:
-
-| Слой | Что | Когда грузится |
-|------|-----|----------------|
-| `rules/common/*.md` | workflow, testing, git, methodology-routing, context-hygiene — любой стек | Всегда |
-| `rules/lang/<lang>.md` | идиомы языка (`paths:` frontmatter) | Только на совпавших файлах |
-| `lang-packs/<lang>/` | skills + docs под стек (напр. `/add-component`) | Опц. накладываешь при setup |
-
-Go/PHP/др. — пишешь свой `rules/lang/<lang>.md` (есть stub-примеры) и опционально
-lang-pack. Generic-ядро не трогаешь.
-
----
-
-## Параметры конфигурации (.harness.conf)
-
-| Переменная | Описание | Пример (ui-kit) |
-|-----------|----------|-----------------|
-| `WATCH_DIR` | Директория для sensor-хука | `packages/ui-kit/lib` |
-| `READONLY_ZONES` | Запрещённые для записи зоны | `dist storybook-static` |
-| `TEST_CMD` | Команда сенсора (пофайлово) | `vitest related --run` |
-| `GATE_CMD` | Gate Ярус 2 (Stop + база pre-push): typecheck+lint+build, **без тестов** | `turbo type-check lint build` |
-| `GATE_TEST_CMD` | Gate Ярус 3 (только pre-push): полные тесты поверх `GATE_CMD` | `turbo test` |
-| `WIKI_PATH` | Путь к долгосрочной памяти | `/path/to/TechWiki/ui-kit-harness` |
-
----
-
-## Capture-flow: наблюдения не теряются
-
-Наблюдение всплывает в середине работы — записать сразу, разобрать потом.
-
-```
-/note hex в CSS не ловится ни guard ни sensor   →  append в .claude/PENDING-NOTES.md
-/note [generic] sensor молчит при exit 0            (timestamp, без LLM-раунда)
-        │
-        ▼  (в конце сессии)
-/end-session → triage буфера:
-        one-off          → log.md
-        recurring rule   → §N в .claude/docs/gotchas.md
-        решение          → ADR в decisions.md
-        [generic]        → дублировать в слой template
-        → буфер очищен
-```
-
-`/note` исполняется через инлайн-bash (`!`...``) — детерминированно, без обращения к
-модели и без permission-промпта. Агент тоже кладёт наблюдения в буфер (через `append.sh`),
-не только пользователь. `gotchas.md` закрывает пробел: code-quality нарушения (токены,
-цвета, классы), которые ни линтер, ни sensor, ни guard не отлавливают.
-
----
-
-## Долгосрочная память: выбирай своё
-
-`load-context.sh` — пример одного подхода: грузить `overview.md` + `log.md` из внешней вики.
-Не стандарт. Три рабочих варианта:
-
-| Вариант | Где хранить | Когда выбирать |
-|---------|-------------|----------------|
-| `.claude/docs/` | В репо (в git) | Команда, CI-агенты, версионируемость |
-| Внешняя вики | TechWiki / Notion / Confluence | Личный нарратив, кросс-проектный контекст |
-| Только CLAUDE.md | Нигде отдельно | Маленький проект, один разработчик |
-
-`.claude/docs/` грузится по требованию через `@.claude/docs/ARCHITECTURE.md` — не автоматически.
-
-**Принцип один: агент надёжен настолько, насколько надёжна среда вокруг него.**
-
----
-
-## When NOT to use
-
-- Проект < 1 недели жизни — overhead не окупится
-- Нет тестов — sensor без тестов бесполезен
-- Один разработчик без AI-агентов — харнесс для агентов, не для людей
-
----
-
-## Первый instance
-
-`turbo-omni/packages/ui-kit` — Vue 3 компонентная библиотека.
-Forcing function: шаблон готов только когда ui-kit на нём реально работает.
+- Проект < 1 недели жизни — overhead не окупится.
+- Нет тестов — sensor без тестов бесполезен.
+- Один разработчик без AI-агентов — харнесс для агентов, не для людей.

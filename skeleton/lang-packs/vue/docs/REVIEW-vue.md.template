@@ -1,7 +1,7 @@
 # Review Checklist (Vue) — <PROJECT_NAME>
 
-> Vue-специфичная добавка к generic-ревью `@.claude/docs/REVIEW.md`.
-> Загружать при ревью Vue-кода: `@.claude/docs/REVIEW-vue.md`
+> Vue-специфичная добавка к generic-ревью `.claude/docs/REVIEW.md`.
+> Читать при ревью Vue-кода (Read): `.claude/docs/REVIEW-vue.md` — не `@import` (`@` грузит на старте).
 
 ## Компоненты / экспорт
 

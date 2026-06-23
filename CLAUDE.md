@@ -39,51 +39,19 @@ sensor/guard не нужны. Но capture-flow догфудим — `.claude/sk
 ## Правило: обновлять диаграммы при изменении структуры
 
 При любом изменении структуры `skeleton/` или добавлении нового компонента харнесса:
-- Обновить соответствующую Mermaid-диаграмму в `README.md`
-- Три диаграммы: **Два слоя репо** / **Runtime flow** / **Skeleton → Instance**
-- Диаграммы — единственная живая документация структуры для людей и агентов
+- Обновить дерево и соответствующую Mermaid-диаграмму в `docs/architecture.md`
+- Три диаграммы: **Два слоя репо** / **Runtime flow** / **Ядро + языковые слои**
+- Это единственная живая документация структуры для людей и агентов
 
-## Параметры конфигурации (`.harness.conf`)
+## Параметры конфигурации
 
-| Переменная | Описание | Пример (ui-kit) |
-|-----------|----------|-----------------|
-| `WATCH_DIR` | Где sensor следит за изменениями | `packages/ui-kit/lib` |
-| `READONLY_ZONES` | Что guard блокирует | `dist storybook-static` |
-| `TEST_CMD` | Команда сенсора (пофайлово) | `vitest related --run` |
-| `GATE_CMD` | Команда gate (repo-wide: typecheck+lint+build) | `turbo type-check lint build` |
-| `WIKI_PATH` | Путь к долгосрочной памяти | `/Users/.../TechWiki/ui-kit-harness/` |
+Канон — самодокументированный `skeleton/.harness.conf.example` (все переменные с комментариями).
+Не дублировать таблицу здесь: вторая копия разойдётся с первой.
 
 ## Структура skeleton/
 
-```
-skeleton/
-├── CLAUDE.md.template          ← роутер с плейсхолдерами
-├── PACKAGE_CLAUDE.md.template  ← guide пакета (generic)
-├── .claude/
-│   ├── settings.json.template  ← хуки: PreToolUse (guard), PostToolUse (sensor), Stop (gate), SessionStart/End
-│   ├── guards/
-│   │   ├── block-zones.sh      ← блокирует READONLY_ZONES
-│   │   ├── run-test-hook.sh    ← sensor: TEST_CMD после Edit/Write (пофайлово)
-│   │   └── gate.sh             ← gate: GATE_CMD на Stop + pre-push (repo-wide, loop-safe)
-│   ├── skills/                 ← команды-skills (текущий стандарт, не commands/)
-│   │   ├── note/               ← /note: capture в PENDING-NOTES.md
-│   │   ├── task/               ← /task: шаблон промпта
-│   │   └── end-session/        ← /end-session: triage + лог
-│   ├── rules/                  ← common-core + per-language (path-scoped)
-│   │   ├── common/             ← workflow, testing, git, methodology-routing, context-hygiene (грузятся всегда)
-│   │   └── lang/               ← vue.md, go.md, php.md (frontmatter paths:)
-│   └── docs/                   ← проектная память в git (JIT, по требованию)
-│       ├── ARCHITECTURE.md.template  ← generic: стек, структура, паттерны
-│       ├── REVIEW.md.template        ← generic чеклист ревью
-│       └── gotchas.md.template       ← реестр найденных ловушек (§-нумерация)
-├── lang-packs/                 ← языковые пакеты поверх ядра
-│   └── vue/                    ← пример: add-component skill, dev-guide, Vue-ревью
-├── scripts/
-│   └── load-context.sh         ← SessionStart: грузит внешнюю вики (один из вариантов)
-├── .cursor/
-│   └── hooks.json              ← делегирует к .claude/guards/ (dual-tool)
-└── .harness.conf.example       ← все параметры с комментариями
-```
+Дерево и диаграммы — в [docs/architecture.md](docs/architecture.md) (единственный дом).
+Здесь не дублировать: ручная вторая копия — источник дрейфа.
 
 ## Долгосрочная память — два слоя
 
@@ -94,5 +62,5 @@ skeleton/
 | `.claude/docs/` | Архитектура, паттерны, review-правила | Да (git) | Команда + CI + агенты |
 | Внешняя вики (через `load-context.sh`) | Лог сессий, личный нарратив, ADR-мотивации | Нет | Только ты + Claude |
 
-`.claude/docs/` грузится по требованию через `@.claude/docs/ARCHITECTURE.md` — не автоматически.
+`.claude/docs/` читать по требованию (Read, когда нужно). НЕ `@import`: `@`-ссылка грузит файл в контекст на СТАРТЕ, не лениво — для JIT не годится.
 `load-context.sh` — один из вариантов памяти. Можно не использовать вообще.
