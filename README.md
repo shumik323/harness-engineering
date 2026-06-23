@@ -22,7 +22,7 @@ Language-agnostic шаблон харнесса для **Claude Code** и **Curs
 
 Это **supervised-харнесс** (человек на цикле), не автономный loop-runner. Набор сознательно MVP — «строй от отказов».
 
-**Входит в шаблон:** guides (CLAUDE.md, rules, skills), sensors (guard/sensor/gate, mute the green), state (capture-flow `/note` → `/end-session`, gotchas), SDD (specify → implement → review), context engineering (path-scoped rules, JIT-docs), dual-tool Claude + Cursor.
+**Входит в шаблон:** guides (CLAUDE.md, rules, skills), sensors (guard/sensor/gate, mute the green), state (capture-flow `/note` → `/end-session`, gotchas), SDD (specify → implement → review; `/plan`-шаблон), context engineering (path-scoped rules, JIT-docs), dual-tool Claude + Cursor.
 
 **Входит частично:** `skeleton/.claude/agents/bug-triage.md` — read-only triage-роль (нативный
 субагент Claude Code), обобщена из боевого проекта. Это reference-by-copy scaffold (instance-owned,
@@ -40,7 +40,7 @@ Language-agnostic шаблон харнесса для **Claude Code** и **Curs
 
 ## Версионируемый sync (Copier)
 
-CORE-слой (guards, skills/{note,end-session,task}, rules/common) синкается через
+CORE-слой (guards, skills/{plan,note,end-session,task}, rules/common) синкается через
 [Copier](https://copier.readthedocs.io). Установка один раз:
 
 ```bash
@@ -203,9 +203,10 @@ harness-template/
 │   │   ├── skills/                 ← команды (текущий стандарт)
 │   │   │   ├── note/               ← /note: capture в PENDING-NOTES.md
 │   │   │   ├── task/               ← /task: шаблон промпта
+│   │   │   ├── plan/               ← /plan: шаблон плана (обязательные секции, авто-инвок)
 │   │   │   └── end-session/        ← /end-session: triage + лог
 │   │   ├── rules/                  ← common-core + per-language
-│   │   │   ├── common/             ← workflow, testing, git (всегда)
+│   │   │   ├── common/             ← workflow, testing, git, methodology-routing, context-hygiene (всегда)
 │   │   │   └── lang/               ← vue.md, go.md, php.md (paths-scoped)
 │   │   └── docs/                   ← проектная память (JIT)
 │   │       ├── ARCHITECTURE.md.template  ← generic
@@ -232,7 +233,7 @@ harness-template/
 
 | Слой | Что | Когда грузится |
 |------|-----|----------------|
-| `rules/common/*.md` | workflow, testing, git — любой стек | Всегда |
+| `rules/common/*.md` | workflow, testing, git, methodology-routing, context-hygiene — любой стек | Всегда |
 | `rules/lang/<lang>.md` | идиомы языка (`paths:` frontmatter) | Только на совпавших файлах |
 | `lang-packs/<lang>/` | skills + docs под стек (напр. `/add-component`) | Опц. накладываешь при setup |
 

@@ -70,7 +70,7 @@ skeleton/
 │   │   ├── task/               ← /task: шаблон промпта
 │   │   └── end-session/        ← /end-session: triage + лог
 │   ├── rules/                  ← common-core + per-language (path-scoped)
-│   │   ├── common/             ← workflow, testing, git (грузятся всегда)
+│   │   ├── common/             ← workflow, testing, git, methodology-routing, context-hygiene (грузятся всегда)
 │   │   └── lang/               ← vue.md, go.md, php.md (frontmatter paths:)
 │   └── docs/                   ← проектная память в git (JIT, по требованию)
 │       ├── ARCHITECTURE.md.template  ← generic: стек, структура, паттерны
