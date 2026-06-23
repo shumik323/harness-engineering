@@ -9,6 +9,7 @@ CORE_PATHS=(
   ".claude/skills/end-session/SKILL.md"
   ".claude/skills/task/SKILL.md"
   ".claude/skills/plan/SKILL.md"
+  ".claude/skills/rename/SKILL.md"
   ".claude/rules/common/git.md"
   ".claude/rules/common/testing.md"
   ".claude/rules/common/workflow.md"

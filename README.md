@@ -22,6 +22,21 @@ Language-agnostic шаблон харнесса для **Claude Code** и **Curs
 
 Это **supervised-харнесс** (человек на цикле), не автономный loop-runner. Набор сознательно MVP — «строй от отказов».
 
+---
+
+## С чего начать
+
+Новый в шаблоне? Вход за ~10 минут (дальше секции самодостаточны — читай по нужде):
+
+1. **Что это** — supervised-харнесс, человек на цикле, не автономный агент. См. **Scope** ниже.
+2. **Поставить** — скопировать ядро `skeleton/` и заполнить `.harness.conf`. См. **5-шаговый setup**.
+3. **Проверить, что живо** — `bash scripts/verify-harness.sh` (guard exit 2 · sensor green · gate).
+4. **Разобраться, как устроено** — дерево структуры + 3 диаграммы ниже.
+5. **Дальше** — свой стек: раздел **Language-agnostic**; обновления CORE — `copier update`.
+
+> Агенту вход — не здесь: его карта в `skeleton/CLAUDE.md.template` (раздел «Агенту на входе»).
+> README — для человека; агент грузит спеку из `CLAUDE.md` + `rules/common/`.
+
 **Входит в шаблон:** guides (CLAUDE.md, rules, skills), sensors (guard/sensor/gate, mute the green), state (capture-flow `/note` → `/end-session`, gotchas), SDD (specify → implement → review; `/plan`-шаблон), context engineering (path-scoped rules, JIT-docs), dual-tool Claude + Cursor.
 
 **Входит частично:** `skeleton/.claude/agents/bug-triage.md` — read-only triage-роль (нативный
@@ -40,7 +55,7 @@ Language-agnostic шаблон харнесса для **Claude Code** и **Curs
 
 ## Версионируемый sync (Copier)
 
-CORE-слой (guards, skills/{plan,note,end-session,task}, rules/common) синкается через
+CORE-слой (guards, skills/{plan,rename,note,end-session,task}, rules/common) синкается через
 [Copier](https://copier.readthedocs.io). Установка один раз:
 
 ```bash
@@ -204,6 +219,7 @@ harness-template/
 │   │   │   ├── note/               ← /note: capture в PENDING-NOTES.md
 │   │   │   ├── task/               ← /task: шаблон промпта
 │   │   │   ├── plan/               ← /plan: шаблон плана (обязательные секции, авто-инвок)
+│   │   │   ├── rename/             ← /rename: ссылки до rename → атомарно (авто-инвок)
 │   │   │   └── end-session/        ← /end-session: triage + лог
 │   │   ├── rules/                  ← common-core + per-language
 │   │   │   ├── common/             ← workflow, testing, git, methodology-routing, context-hygiene (всегда)
