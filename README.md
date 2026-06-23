@@ -63,7 +63,7 @@ brew install pipx && pipx ensurepath
 pipx install copier
 ```
 
-Версия CORE в `VERSION`; инстанс помнит свою в `.copier-answers.yml` и тянет обновления
+Версия CORE = git-тег темплейта (`vX.Y.Z`); инстанс помнит свою в `.copier-answers.yml` и тянет обновления
 `copier update`. Дрейф CORE проверяется `scripts/harness-status.sh <instance>`.
 Ручной `cp`-setup ниже — для слоёв вне CORE и первичной раскатки.
 
@@ -180,11 +180,17 @@ flowchart TD
     L --> M{GATE_CMD успешен?}
     M -->|нет| N["GATE FAILED (exit 2): ход не завершить"]
     M -->|да| O["ход завершается"]
+    P["UserPromptSubmit"] --> Q["nudge.sh"]
+    Q --> R{boundary-триггер?}
+    R -->|да| S["additionalContext: объяви verify-уровень"]
+    R -->|нет| T["тишина (exit 0)"]
     style E fill:#ffcccc
     style I fill:#ffcccc
     style J fill:#ccffcc
     style N fill:#ffcccc
     style O fill:#ccffcc
+    style S fill:#fff0d0
+    style T fill:#ccffcc
 ```
 
 ### Ядро + языковые слои
@@ -210,11 +216,12 @@ harness-template/
 │   ├── CLAUDE.md.template          ← роутер с плейсхолдерами
 │   ├── PACKAGE_CLAUDE.md.template  ← guide пакета (generic)
 │   ├── .claude/
-│   │   ├── settings.json.template  ← хуки: PreToolUse(guard), PostToolUse(sensor), Stop(gate), SessionStart/End
+│   │   ├── settings.json.template  ← хуки: PreToolUse(guard), PostToolUse(sensor), Stop(gate), UserPromptSubmit(nudge), SessionStart/End
 │   │   ├── guards/
 │   │   │   ├── block-zones.sh      ← guard: читает READONLY_ZONES
 │   │   │   ├── run-test-hook.sh    ← sensor: WATCH_DIR + TEST_CMD (пофайлово)
-│   │   │   └── gate.sh             ← gate Ярус 2: GATE_CMD без тестов (Stop + база pre-push, loop-safe)
+│   │   │   ├── gate.sh             ← gate Ярус 2: GATE_CMD без тестов (Stop + база pre-push, loop-safe)
+│   │   │   └── nudge.sh            ← nudge: UserPromptSubmit, boundary→verify-напоминание (exit 0, не блокирует)
 │   │   ├── skills/                 ← команды (текущий стандарт)
 │   │   │   ├── note/               ← /note: capture в PENDING-NOTES.md
 │   │   │   ├── task/               ← /task: шаблон промпта

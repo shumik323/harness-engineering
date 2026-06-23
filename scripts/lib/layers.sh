@@ -4,6 +4,7 @@ CORE_PATHS=(
   ".claude/guards/block-zones.sh"
   ".claude/guards/gate.sh"
   ".claude/guards/run-test-hook.sh"
+  ".claude/guards/nudge.sh"
   ".claude/skills/note/append.sh"
   ".claude/skills/note/SKILL.md"
   ".claude/skills/end-session/SKILL.md"
