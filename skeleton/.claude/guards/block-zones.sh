@@ -60,6 +60,8 @@ except:
     print('')
 ")"
   for zone in $READONLY_ZONES; do
+    zone="${zone#/}"; zone="${zone%/}"          # снять обрамляющие слеши: "dist/" → "dist"
+    [[ -z "$zone" ]] && continue                # пустая зона после нормализации → пропустить
     # §6: матчим НАМЕРЕНИЕ записи в зону, не упоминание имени в тексте.
     # zone-как-путь: опц. путь-префикс + zone + граница токена
     ZONE_PATH="([^[:space:]\"';|&]*/)?${zone}(/|[[:space:]]|\"|'|;|&|\||\$)"
@@ -78,12 +80,19 @@ except:
 fi
 
 for zone in $READONLY_ZONES; do
-  ZONE_ABS="${REPO_ROOT}/${zone}"
-  if [[ "$TARGET_FILE" == "$ZONE_ABS"* ]] || [[ "$TARGET_FILE" == "${zone}"* ]]; then
-    echo "GUARD BLOCKED: '${zone}/' is a read-only zone (generated files)." >&2
-    echo "Use the build command instead of writing directly." >&2
-    exit 2
-  fi
+  zone="${zone#/}"; zone="${zone%/}"            # снять обрамляющие слеши: "dist/" → "dist"
+  [[ -z "$zone" ]] && continue                  # пустая зона после нормализации → пропустить
+  # Матчим zone как ПОЛНЫЙ сегмент пути: обёртка /…/ + */zone/* ловит и top-level
+  # (dist/x), и вложенный (monorepo packages/ui-kit/dist/x), и саму папку (dist).
+  # Сегмент целиком, не префикс → НЕ ловит соседа distribution/. Работает для
+  # абсолютного и относительного TARGET_FILE (обёртка нормализует границы).
+  case "/${TARGET_FILE}/" in
+    */"${zone}"/*)
+      echo "GUARD BLOCKED: '${zone}/' is a read-only zone (generated files)." >&2
+      echo "Use the build command instead of writing directly." >&2
+      exit 2
+      ;;
+  esac
 done
 
 exit 0
