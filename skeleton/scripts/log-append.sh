@@ -18,7 +18,21 @@
 
 set -u
 
-LOG_FILE="${LOG_FILE:-docs/log.md}"
+# Лог по замыслу живёт в вике: `end-session` велит писать в `$WIKI_PATH/log.md`
+# именно этим скриптом. Про личный слой скрипт не знал и падал на `docs/log.md` —
+# то есть штатный путь из скила не работал. Читаем тот же слой, что load-context.
+REPO_ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+LOCAL_CONF="${HARNESS_LOCAL_CONF:-${HOME:-}/.harness/$(basename "$REPO_ROOT").conf}"
+# shellcheck source=/dev/null
+[ -f "$LOCAL_CONF" ] && . "$LOCAL_CONF"
+
+if [ -n "${LOG_FILE:-}" ]; then
+  :
+elif [ -n "${WIKI_PATH:-}" ]; then
+  LOG_FILE="${WIKI_PATH}/log.md"
+else
+  LOG_FILE="docs/log.md"
+fi
 ENTRY="${1:-}"
 
 if [ -z "$ENTRY" ]; then

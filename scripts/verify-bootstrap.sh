@@ -71,8 +71,10 @@ check "шаблон спеки на месте" "$R" yes
 [[ -f "$P/.claude/guards/run-pytest-hook.sh" ]] && R=yes || R=no
 check "Python-сенсор приехал" "$R" yes
 
-grep -q "run-pytest-hook.sh" "$P/.claude/settings.json" 2>/dev/null && R=yes || R=no
-check "сенсор подменён на pytest" "$R" yes
+# Годится любой вариант: прямая подмена хука под стек ИЛИ диспетчер, который
+# роутит по расширению и зовёт нужный дочерний хук сам.
+grep -qE "run-pytest-hook\.sh|sensor\.sh" "$P/.claude/settings.json" 2>/dev/null && R=yes || R=no
+check "Python-правки уходят в pytest (подменой или диспетчером)" "$R" yes
 
 grep -q 'PYTEST_MODE="map"' "$P/.harness.conf" 2>/dev/null && R=yes || R=no
 check "режим сенсора map" "$R" yes

@@ -40,7 +40,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/guards/run-test-hook.sh\""
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/guards/sensor.sh\""
           }
         ]
       }
