@@ -1,6 +1,20 @@
 _subdirectory: skeleton
 _answers_file: .copier-answers.yml
 
+# Instance-owned скаффолд: приезжает при ПЕРВОМ copy, при `copier update`
+# существующий файл НЕ перезаписывается — это файлы инстанса, шаблон даёт
+# только стартовое состояние (fail-open, работает из коробки).
+_skip_if_exists:
+  - ".harness.conf"
+  - ".claude/settings.json"
+  - "CLAUDE.md"
+  - ".gitignore"
+  - "scripts/load-context.sh"
+  - "scripts/verify-harness.sh"
+  # Языковые правила — стартер, инстанс их дорабатывает под себя (сужает paths:
+  # под свою раскладку, добавляет проектные пункты). Обновления пака не форсим.
+  - ".claude/rules/lang/*.md"
+
 _exclude:
   # ВНИМАНИЕ: это blacklist, не whitelist (Copier не поддерживает re-include после "*").
   # Новый НЕ-CORE файл в skeleton/ просочится в инстанс, пока не добавлен сюда.
@@ -32,19 +46,22 @@ _exclude:
   # форс-синк ломал бы инстанс, а пустой плейсхолдер в каждом репо вреднее явного принятия.
   - ".claude/agents"
 
-  # run-pytest-hook — Python-LANG sensor: доставляем ТОЛЬКО при lang=python (как lang-файлы ниже),
-  # а не исключаем глухо. Иначе Python-инстанс ссылается на хук, который синк не привозит.
-  - "{% if lang != 'python' %}.claude/guards/run-pytest-hook.sh{% endif %}"
+  # Пак доставляется, если выбран как основной (lang) ИЛИ как дополнительный
+  # (extra_langs) — монорепе нужно несколько сразу: python для бэкенда,
+  # react для фронта. Почему не мультивыбор в самом lang: copier парсит ответ
+  # ДО рендера шаблонов, и мультивыбор роняет существующие инстансы со строковым
+  # ответом (`lang: python` → "Not a YAML list"). Отдельный вопрос обратно совместим.
 
   # md-libs lang file is not a standard LANG pack
   - ".claude/rules/lang/md-libs.md"
 
-  # Exclude each lang file that is NOT the selected lang
-  - "{% if lang != 'vue' %}.claude/rules/lang/vue.md{% endif %}"
-  - "{% if lang != 'go' %}.claude/rules/lang/go.md{% endif %}"
-  - "{% if lang != 'php' %}.claude/rules/lang/php.md{% endif %}"
-  - "{% if lang != 'python' %}.claude/rules/lang/python.md{% endif %}"
-  - "{% if lang != 'dotnet' %}.claude/rules/lang/dotnet.md{% endif %}"
+  # Exclude each lang file that is NOT selected (neither primary nor extra)
+  - "{% if lang != 'vue' and 'vue' not in extra_langs %}.claude/rules/lang/vue.md{% endif %}"
+  - "{% if lang != 'go' and 'go' not in extra_langs %}.claude/rules/lang/go.md{% endif %}"
+  - "{% if lang != 'php' and 'php' not in extra_langs %}.claude/rules/lang/php.md{% endif %}"
+  - "{% if lang != 'python' and 'python' not in extra_langs %}.claude/rules/lang/python.md{% endif %}"
+  - "{% if lang != 'react' and 'react' not in extra_langs %}.claude/rules/lang/react.md{% endif %}"
+  - "{% if lang != 'dotnet' and 'dotnet' not in extra_langs %}.claude/rules/lang/dotnet.md{% endif %}"
 
 project_name:
   type: str
@@ -52,6 +69,13 @@ project_name:
 
 lang:
   type: str
-  help: Языковой пак
-  choices: [vue, go, php, python, dotnet, none]
+  help: Основной языковой пак
+  choices: [vue, react, go, php, python, dotnet, none]
   default: vue
+
+extra_langs:
+  type: str
+  multiselect: true
+  help: Дополнительные паки — для монорепы (напр. react поверх python). Обычный проект — пусто.
+  choices: [vue, react, go, php, python]
+  default: []

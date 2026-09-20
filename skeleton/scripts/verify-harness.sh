@@ -7,19 +7,14 @@
 # даёт exit 3 «ничего не проверено» — не зелёный (нечего проверять ≠ всё живо)
 # и не красный (кривой запуск ≠ поломанный харнесс).
 #
-# Тесты:
-#   1. .harness.conf существует и читается
-#   2. guard исполняем
-#   3. guard блокирует readonly зону (exit 2)
-#   4. guard пропускает разрешённый путь (exit != 2)
-#   5. sensor существует и исполняем
-#   6. load-context.sh существует (опционально)
-#   7. gate: защита от петли держит (stop_hook_active → exit 0 без прогона GATE_CMD)
-#   8. /note capture: append.sh исполняем
+# Состав проверок здесь не перечисляем: список из восьми пунктов пережил рост до
+# семнадцати и стал описывать не тот скрипт. Что проверяется — печатают [PASS]-строки
+# прогона, они и есть реестр.
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+GUARDS="${REPO_ROOT}/.claude/guards"
 PASS=0
 FAIL=0
 
@@ -27,6 +22,7 @@ FAIL=0
 # и под `set -e` это роняет скрипт на первом же ok()/fail() (счётчик стартует с 0).
 ok()   { echo "  [PASS] $1"; PASS=$((PASS + 1)); }
 fail() { echo "  [FAIL] $1"; FAIL=$((FAIL + 1)); }
+skip() { echo "  [SKIP] $1"; }
 
 echo "=== verify-harness ==="
 echo ""
@@ -36,8 +32,12 @@ echo ""
 # Признак шаблона — `.harness.conf.example` рядом (в инстанс он не доставляется ни
 # одним каналом) или каталог `skeleton/` выше.
 CONF="${REPO_ROOT}/.harness.conf"
-if [[ ! -f "$CONF" ]] \
-   && { [[ -f "${REPO_ROOT}/.harness.conf.example" ]] || [[ -d "${REPO_ROOT}/skeleton" ]]; }; then
+# `copier.yml` этажом выше — мы внутри skeleton самого шаблона. Признак нужен
+# отдельно: форк кладёт в skeleton готовый `.harness.conf`, и заготовка по
+# старому признаку («конфига нет») выглядела инстансом.
+if [[ -f "${REPO_ROOT}/../copier.yml" ]] \
+   || { [[ ! -f "$CONF" ]] \
+        && { [[ -f "${REPO_ROOT}/.harness.conf.example" ]] || [[ -d "${REPO_ROOT}/skeleton" ]]; }; }; then
   echo "  [SKIP] это шаблон харнесса, не проект — .harness.conf нет, раскатывать нечего."
   echo ""
   echo "Ничего не проверено. Смотри по назначению:"
@@ -74,7 +74,7 @@ if [[ -n "${READONLY_ZONES:-}" ]]; then
   FIRST_ZONE=$(echo "$READONLY_ZONES" | awk '{print $1}')
   TEST_FILE="${REPO_ROOT}/${FIRST_ZONE}/test-verify.txt"
 
-  GUARD_OUT=$(echo "{\"tool_input\": {\"path\": \"${TEST_FILE}\"}}" | bash "$GUARD" 2>&1) || GUARD_EXIT=$?
+  echo "{\"tool_input\": {\"path\": \"${TEST_FILE}\"}}" | bash "$GUARD" >/dev/null 2>&1 || GUARD_EXIT=$?
   GUARD_EXIT=${GUARD_EXIT:-0}
 
   if [[ "$GUARD_EXIT" -eq 2 ]]; then
@@ -89,7 +89,7 @@ fi
 # 4. guard пропускает разрешённый путь
 if [[ -n "${WATCH_DIR:-}" ]]; then
   ALLOWED_FILE="${REPO_ROOT}/${WATCH_DIR}/some-component.vue"
-  GUARD_OUT2=$(echo "{\"tool_input\": {\"path\": \"${ALLOWED_FILE}\"}}" | bash "$GUARD" 2>&1) || GUARD_EXIT2=$?
+  echo "{\"tool_input\": {\"path\": \"${ALLOWED_FILE}\"}}" | bash "$GUARD" >/dev/null 2>&1 || GUARD_EXIT2=$?
   GUARD_EXIT2=${GUARD_EXIT2:-0}
 
   if [[ "$GUARD_EXIT2" -ne 2 ]]; then
@@ -117,33 +117,151 @@ else
   echo "  [SKIP] load-context.sh не найден — SessionStart без долгосрочной памяти"
 fi
 
-# 7. gate: защита от петли. На stop_hook_active gate обязан выйти 0 НЕ запуская
-# GATE_CMD — иначе Stop-хук уходит в бесконечный цикл.
-#
-# Гоняем на ПОДСТАВНОМ REPO_ROOT с `GATE_CMD="exit 9"`, а не на конфиге проекта.
-# Причина: на настоящем конфиге исход один и тот же и когда защита работает, и когда
-# её нет — GATE_CMD проходит, gate возвращает 0. Проверка была бы вакуумной (проверено
-# мутацией: защиту убрал, тест остался зелёным). Команда, которая гарантированно падает,
-# делает две ветки различимыми: 0 = не запускалась, 2 = запустилась.
+# Гейт: он и есть проверка на конце хода. Четыре ветки, и все — на ПОДСТАВНОМ REPO_ROOT
+# с `GATE_CMD="exit 9"`, а не на конфиге проекта. Причина: на настоящем конфиге исход один и
+# тот же и когда защита работает, и когда её нет — команда проходит, gate возвращает 0, и
+# проверка вакуумна (проверено мутацией: защиту убрал, тест остался зелёным). Подстановка
+# GATE_CMD через `env` тут не годится: заготовка конфига пишет голое присваивание, и `source`
+# затирает окружение — на свежем инстансе проверка краснела впустую.
 GATE="${REPO_ROOT}/.claude/guards/gate.sh"
+gate_sandbox() { local d; d="$(mktemp -d)"; echo 'GATE_CMD="exit 9"' > "${d}/.harness.conf"; printf '%s' "$d"; }
 if [[ -x "$GATE" ]]; then
-  GATE_SANDBOX="$(mktemp -d)"
-  echo 'GATE_CMD="exit 9"' > "${GATE_SANDBOX}/.harness.conf"
-  GATE_EXIT=0
-  printf '%s' '{"stop_hook_active": true}' \
-    | REPO_ROOT="$GATE_SANDBOX" bash "$GATE" >/dev/null 2>&1 || GATE_EXIT=$?
-  rm -rf "$GATE_SANDBOX"
-  if [[ "$GATE_EXIT" -eq 0 ]]; then
-    ok "gate.sh: защита от петли держит (stop_hook_active → GATE_CMD не запущен)"
+  # Красная проверка на обычном Stop обязана блокировать ход.
+  SB="$(gate_sandbox)"; RED_EXIT=0
+  printf '%s' '{}' | REPO_ROOT="$SB" bash "$GATE" >/dev/null 2>&1 || RED_EXIT=$?
+  rm -rf "$SB"
+  if [[ "$RED_EXIT" -eq 2 ]]; then
+    ok "gate.sh блокирует конец хода на красной проверке (exit 2)"
   else
-    fail "gate.sh на stop_hook_active вернул ${GATE_EXIT}: команда запустилась, Stop-хук уйдёт в цикл"
+    fail "gate.sh НЕ заблокировал красную проверку (exit ${RED_EXIT}, ожидалось 2)"
   fi
+
+  # Защита от петли: агент уже в forced-continuation после нашего же блока.
+  SB="$(gate_sandbox)"; LOOP_EXIT=0
+  LOOP_OUT="$(printf '%s' '{"stop_hook_active": true}' | REPO_ROOT="$SB" bash "$GATE" 2>&1)" || LOOP_EXIT=$?
+  rm -rf "$SB"
+  if [[ "$LOOP_EXIT" -eq 0 ]]; then
+    ok "gate.sh: защита от петли держит (stop_hook_active → ход не блокируется)"
+  else
+    fail "gate.sh на stop_hook_active вернул ${LOOP_EXIT}: Stop-хук уйдёт в цикл"
+  fi
+
+  # И не молчит: exit 0 при красной проверке неотличим от «гейт прошёл».
+  if [[ -n "${LOOP_OUT// }" ]]; then
+    ok "gate.sh сообщает о красной проверке, даже когда не блокирует"
+  else
+    fail "gate.sh пропустил красную проверку МОЛЧА — неотличимо от успеха"
+  fi
+
+  # Зелёный молчит: иначе отчёт на каждом повторном Stop перестанут читать.
+  SB="$(mktemp -d)"; echo 'GATE_CMD="true"' > "${SB}/.harness.conf"
+  QUIET_OUT="$(printf '%s' '{"stop_hook_active": true}' | REPO_ROOT="$SB" bash "$GATE" 2>&1 || true)"
+  rm -rf "$SB"
+  if [[ -z "${QUIET_OUT// }" ]]; then
+    ok "gate.sh молчит на зелёной проверке (mute the green)"
+  else
+    fail "gate.sh шумит на зелёной проверке: ${QUIET_OUT}"
+  fi
+
   if [[ -z "${GATE_CMD:-}" ]]; then
     echo "  [SKIP] GATE_CMD в .harness.conf пуст — Ярус 2 ничего не проверяет"
   fi
 else
   fail "gate.sh не найден или не исполняем: ${GATE}"
 fi
+
+# 18. Нудж отвечает на boundary-промпт. Пустой ответ означал бы, что правило
+# testing.md про уровень verify не активируется ничем.
+NUDGE="${GUARDS}/nudge.sh"
+if [[ -x "$NUDGE" ]]; then
+  NUDGE_OUT=$(echo '{"prompt": "почини запрос к api бэкенда"}' | bash "$NUDGE" 2>/dev/null || true)
+  if [[ -n "${NUDGE_OUT// }" ]]; then
+    ok "nudge.sh отвечает на boundary-промпт"
+  else
+    fail "nudge.sh промолчал на boundary-промпте — напоминание про verified: мертво"
+  fi
+else
+  fail "nudge.sh не найден или не исполняем: ${NUDGE}"
+fi
+
+# 20-21. Связность settings.json с диском: хук, ссылающийся на несуществующий
+# файл, отваливается тихо — событие просто перестаёт срабатывать.
+SETTINGS="${REPO_ROOT}/.claude/settings.json"
+if [[ -f "$SETTINGS" ]] && command -v python3 >/dev/null 2>&1; then
+  MISSING="$(python3 - "$SETTINGS" "$REPO_ROOT" <<'PYEOF'
+import json, re, sys, os
+
+settings, root = sys.argv[1], sys.argv[2]
+hooks = json.load(open(settings)).get('hooks', {})
+missing = []
+
+for event, groups in hooks.items():
+    for group in groups:
+        for hook in group.get('hooks', []):
+            if hook.get('type') != 'command':
+                continue
+            for path in re.findall(r'\$CLAUDE_PROJECT_DIR/([^"\s]+)', hook.get('command', '')):
+                if not os.path.exists(os.path.join(root, path)):
+                    missing.append(f'{event}: {path}')
+
+print('\n'.join(missing))
+PYEOF
+)"
+  if [[ -z "${MISSING// }" ]]; then
+    ok "settings.json: все командные хуки указывают на существующие файлы"
+  else
+    fail "settings.json ссылается на несуществующее: ${MISSING//$'\n'/, }"
+  fi
+
+  WIRED="$(python3 -c "import json,sys; print(' '.join(sorted(json.load(open(sys.argv[1])).get('hooks', {}))))" "$SETTINGS")"
+  EXPECTED="InstructionsLoaded PostToolUse PreToolUse SessionEnd SessionStart Stop UserPromptSubmit"
+  if [[ "$WIRED" == "$EXPECTED" ]]; then
+    ok "settings.json: подключены все семь событий"
+  else
+    fail "settings.json: события разошлись с ожидаемыми — «${WIRED}» вместо «${EXPECTED}»"
+  fi
+else
+  skip "settings.json не найден или нет python3 — связность хуков не проверена"
+fi
+
+# 24-25. Новые стражи: подключены — значит обязаны различать свои ветки.
+# Проверка 20 подтверждает лишь, что путь существует; выпади страж из
+# settings.json, она осталась бы зелёной.
+BLE="${GUARDS}/block-large-edit.sh"
+if [[ -x "$BLE" ]]; then
+  # Файл нужен любой существующий и покрупнее порога в 1KB: правила common — CORE,
+  # они есть в каждом инстансе.
+  BIG="${REPO_ROOT}/.claude/rules/common/testing.md"
+  BLOCK=0
+  echo "{\"tool_name\":\"Edit\",\"tool_input\":{\"file_path\":\"${BIG}\"}}" \
+    | env LARGE_EDIT_KB=1 bash "$BLE" >/dev/null 2>&1 || BLOCK=$?
+  PASS_THROUGH=0
+  echo "{\"tool_name\":\"Edit\",\"tool_input\":{\"file_path\":\"${BIG}\"}}" \
+    | env LARGE_EDIT_KB=99999 bash "$BLE" >/dev/null 2>&1 || PASS_THROUGH=$?
+  if [[ "$BLOCK" -eq 2 && "$PASS_THROUGH" -eq 0 ]]; then
+    ok "block-large-edit.sh различает ветки (порог мал → 2, велик → 0)"
+  else
+    fail "block-large-edit.sh не различает ветки: мал=${BLOCK}, велик=${PASS_THROUGH}"
+  fi
+else
+  fail "block-large-edit.sh не найден или не исполняем: ${BLE}"
+fi
+
+LOGI="${GUARDS}/log-instructions.sh"
+if [[ -x "$LOGI" ]]; then
+  LOGDIR="$(mktemp -d)"
+  echo '{"load_reason":"path_glob_match","file_path":"probe/shell.md"}' \
+    | env CLAUDE_PROJECT_DIR="$LOGDIR" METRICS_DIR=metrics bash "$LOGI" >/dev/null 2>&1 || true
+  if [[ -s "${LOGDIR}/metrics/instructions-load.log" ]]; then
+    ok "log-instructions.sh пишет строку в METRICS_DIR"
+  else
+    fail "log-instructions.sh ничего не записал — канарейка мертва"
+  fi
+  rm -rf "$LOGDIR"
+else
+  fail "log-instructions.sh не найден или не исполняем: ${LOGI}"
+fi
+
 
 # 8. /note capture skill (append.sh исполняем).
 # Путь именно в .claude/ проекта: раньше тут стоял ${REPO_ROOT}/skeleton/... — в любом
@@ -153,6 +271,175 @@ if [[ -x "$NOTE_APPEND" ]]; then
   ok "/note capture skill: append.sh исполняем"
 else
   fail "/note append.sh не найден или не исполняем: ${NOTE_APPEND}"
+fi
+
+# 5. дочерние sensor-хуки на месте
+for hook in run-test-hook.sh run-pytest-hook.sh; do
+  if [[ -x "${GUARDS}/${hook}" ]]; then
+    ok "${hook} исполняем"
+  else
+    fail "${hook} не найден или не исполняем: ${GUARDS}/${hook}"
+  fi
+done
+
+# 8. sensor-диспетчер
+DISPATCH="${GUARDS}/sensor.sh"
+if [[ -x "$DISPATCH" ]]; then
+  ok "sensor.sh (диспетчер) исполняем"
+else
+  fail "sensor.sh не найден или не исполняем: ${DISPATCH}"
+fi
+
+# 9. диспетчер молчит на неизвестном расширении и не падает
+DISPATCH_EXIT=0
+echo "{\"tool_input\": {\"file_path\": \"${REPO_ROOT}/README.md\"}}" | bash "$DISPATCH" >/dev/null 2>&1 || DISPATCH_EXIT=$?
+if [[ "$DISPATCH_EXIT" -eq 0 ]]; then
+  ok "sensor.sh fail-open на нерелевантном файле (exit 0)"
+else
+  fail "sensor.sh упал на нерелевантном файле (exit ${DISPATCH_EXIT})"
+fi
+
+# 10-12. Роутинг sensor'а (фикстура: временная репа).
+# Проверяем три сценария:
+#   - монорепа JS: тесты запускаются в БЛИЖАЙШЕМ воркспейсе, не в корне
+#   - Python: тесты в воркспейсе с pyproject.toml
+#   - legacy-конфиг (одностековый TEST_CMD, без JS_*): продолжает работать
+FIXTURE="$(mktemp -d)"
+trap 'rm -rf "$FIXTURE"' EXIT
+
+mkdir -p "${FIXTURE}/apps/web/src" "${FIXTURE}/apps/api/tests"
+: > "${FIXTURE}/package.json"
+: > "${FIXTURE}/apps/web/package.json"
+: > "${FIXTURE}/apps/web/src/Btn.tsx"
+: > "${FIXTURE}/apps/api/pyproject.toml"
+: > "${FIXTURE}/apps/api/svc.py"
+: > "${FIXTURE}/apps/api/tests/test_svc.py"
+
+# Конфиг фикстуры в том же ${VAR:-} стиле, что и настоящий: иначе source затрёт env.
+cat > "${FIXTURE}/.harness.conf" <<'CONF'
+PY_WATCH_DIR="${PY_WATCH_DIR:-}"
+PY_TEST_CMD="${PY_TEST_CMD:-}"
+PY_TEST_WORKDIR="${PY_TEST_WORKDIR:-}"
+PYTEST_MODE="${PYTEST_MODE:-map}"
+JS_WATCH_DIR="${JS_WATCH_DIR:-}"
+JS_TEST_CMD="${JS_TEST_CMD:-}"
+JS_TEST_WORKDIR="${JS_TEST_WORKDIR:-}"
+WATCH_DIR="${WATCH_DIR:-}"
+TEST_CMD="${TEST_CMD:-}"
+TEST_WORKDIR="${TEST_WORKDIR:-}"
+SENSOR_MAP="${SENSOR_MAP:-}"
+CONF
+
+# Пробник вместо реального раннера: пишет свой cwd и молчит (mute the green).
+# $PWD, а не `pwd -P`: mktemp на macOS отдаёт путь через симлинк (/var → /private/var),
+# и физический путь не совпал бы с ожидаемым.
+cat > "${FIXTURE}/probe.sh" <<'PROBE'
+echo "$PWD" > "$(dirname "$0")/probe-out"
+PROBE
+
+probe_workspace() { # $1 = изменённый файл, $2 = имя переменной с командой
+  rm -f "${FIXTURE}/probe-out"
+  echo "{\"tool_input\": {\"file_path\": \"${FIXTURE}/${1}\"}}" \
+    | env REPO_ROOT="$FIXTURE" "${2}=bash ${FIXTURE}/probe.sh" \
+      bash "$DISPATCH" >/dev/null 2>&1 || true
+  [[ -f "${FIXTURE}/probe-out" ]] && cat "${FIXTURE}/probe-out" || echo "<не запускался>"
+}
+
+JS_WS="$(probe_workspace "apps/web/src/Btn.tsx" JS_TEST_CMD)"
+if [[ "$JS_WS" == "${FIXTURE}/apps/web" ]]; then
+  ok "sensor.sh: .tsx → тесты в ближайшем JS-воркспейсе (apps/web)"
+else
+  fail "sensor.sh: .tsx ушёл не в тот воркспейс: ожидалось ${FIXTURE}/apps/web, получено ${JS_WS}"
+fi
+
+PY_WS="$(probe_workspace "apps/api/svc.py" PY_TEST_CMD)"
+if [[ "$PY_WS" == "${FIXTURE}/apps/api" ]]; then
+  ok "sensor.sh: .py → тесты в ближайшем Python-воркспейсе (apps/api)"
+else
+  fail "sensor.sh: .py ушёл не в тот воркспейс: ожидалось ${FIXTURE}/apps/api, получено ${PY_WS}"
+fi
+
+# legacy: одностековый конфиг (TEST_CMD, JS_* пусты) — файл в корневом воркспейсе
+: > "${FIXTURE}/root-file.ts"
+LEGACY_WS="$(probe_workspace "root-file.ts" TEST_CMD)"
+if [[ "$LEGACY_WS" == "${FIXTURE}" ]]; then
+  ok "sensor.sh: legacy TEST_CMD без JS_* работает (корневой воркспейс)"
+else
+  fail "sensor.sh: legacy TEST_CMD сломан: ожидалось ${FIXTURE}, получено ${LEGACY_WS}"
+fi
+
+# SENSOR_MAP: явный workdir из карты бьёт автоопределение по манифесту
+mkdir -p "${FIXTURE}/custom"
+probe_map() { # $1 = файл, $2 = переменная команды, $3 = карта
+  rm -f "${FIXTURE}/probe-out"
+  echo "{\"tool_input\": {\"file_path\": \"${FIXTURE}/${1}\"}}" \
+    | env REPO_ROOT="$FIXTURE" "${2}=bash ${FIXTURE}/probe.sh" SENSOR_MAP="$3" \
+      bash "$DISPATCH" >/dev/null 2>&1 || true
+  [[ -f "${FIXTURE}/probe-out" ]] && cat "${FIXTURE}/probe-out" || echo "<не запускался>"
+}
+
+MAP_WS="$(probe_map "apps/web/src/Btn.tsx" JS_TEST_CMD "apps/web js custom")"
+if [[ "$MAP_WS" == "${FIXTURE}/custom" ]]; then
+  ok "sensor.sh: SENSOR_MAP workdir бьёт автоопределение (custom вместо apps/web)"
+else
+  fail "sensor.sh: SENSOR_MAP workdir не сработал: ожидалось ${FIXTURE}/custom, получено ${MAP_WS}"
+fi
+
+# SENSOR_MAP: папка явно отдана другому стеку → sensor молчит
+OWN_WS="$(probe_map "apps/web/src/Btn.tsx" JS_TEST_CMD "apps/web py")"
+if [[ "$OWN_WS" == "<не запускался>" ]]; then
+  ok "sensor.sh: SENSOR_MAP владение — .tsx в py-папке молчит"
+else
+  fail "sensor.sh: SENSOR_MAP владение нарушено — .tsx в py-папке запустил тесты в ${OWN_WS}"
+fi
+
+# Ярус 3 активирован. Проверка нужна именно здесь, а не только в verify-bootstrap:
+# тот смотрит на РОЖДЕНИЕ инстанса, а `.git/hooks` не версионируется — после `git clone`
+# хука нет ни у кого, кроме того, кто гонял bootstrap. Документация при этом продолжает
+# обещать проверку на push, и отличить «ярус прошёл» от «яруса нет» нечем.
+PP_LOGIC="${GUARDS}/pre-push.sh"
+PP_HOOK="${REPO_ROOT}/.git/hooks/pre-push"
+if [[ ! -f "$PP_LOGIC" ]]; then
+  fail "ярус 3: нет CORE-логики ${PP_LOGIC#"$REPO_ROOT"/} — перекати инстанс"
+elif [[ ! -d "${REPO_ROOT}/.git" ]]; then
+  skip "ярус 3: не git-репозиторий, ставить хук некуда"
+elif [[ ! -x "$PP_HOOK" ]]; then
+  fail "ярус 3 не подключён: нет исполняемого .git/hooks/pre-push — push ничем не проверяется"
+elif ! grep -q "guards/pre-push.sh" -- "$PP_HOOK"; then
+  fail "ярус 3: .git/hooks/pre-push не зовёт CORE-логику — на push идёт что-то другое"
+else
+  ok "ярус 3: .git/hooks/pre-push подключён и зовёт guards/pre-push.sh"
+fi
+
+# Дрейф CORE. Часть файлов защищена от `copier update` (`_skip_if_exists`), чтобы
+# инстанс мог дорабатывать их под себя. Плата — расхождение с шаблоном, которого в диффе
+# обновления не видно вовсе. Детектор уже есть (`harness-status.sh` в репозитории шаблона),
+# ему не хватало повода запуститься: здесь и есть то место, где спрашивают состояние.
+#
+# DIVERGED и MISSING разведены НАМЕРЕННО. Расхождение — законное состояние (ради него защита
+# и заводилась), и если красить им смоук, его выключат целиком вместе с верными пунктами.
+# А вот пропавший CORE-файл — поломка доставки, и это FAIL.
+LOCAL_CONF="${HARNESS_LOCAL_CONF:-${HOME:-}/.harness/$(basename "$REPO_ROOT").conf}"
+# shellcheck source=/dev/null
+[[ -f "$LOCAL_CONF" ]] && source "$LOCAL_CONF"
+STATUS_SH="${HARNESS_TEMPLATE_PATH:-}/scripts/harness-status.sh"
+if [[ -z "${HARNESS_TEMPLATE_PATH:-}" ]]; then
+  skip "дрейф CORE не проверен: HARNESS_TEMPLATE_PATH не задан в ${LOCAL_CONF}"
+elif [[ ! -f "$STATUS_SH" ]]; then
+  fail "дрейф CORE: ${HARNESS_TEMPLATE_PATH} не похож на клон шаблона — нет scripts/harness-status.sh"
+else
+  DRIFT_OUT="$(bash "$STATUS_SH" "$REPO_ROOT" 2>&1 || true)"
+  GONE="$(printf '%s\n' "$DRIFT_OUT" | awk '$1 == "MISSING" { printf "%s ", $2 }')"
+  DIVERGED="$(printf '%s\n' "$DRIFT_OUT" | grep -E '^  DIVERGED ' || true)"
+  if [[ -n "$GONE" ]]; then
+    fail "дрейф CORE: CORE-файлов нет в инстансе: ${GONE% }"
+  elif [[ -n "$DIVERGED" ]]; then
+    ok "дрейф CORE: MISSING нет (расхождения ниже — не провал, решение владельца)"
+    printf '%s\n' "$DIVERGED" | sed 's/^  DIVERGED /  [DRIFT] расходится с шаблоном: /'
+    echo "          подъём наверх — harness-contribute.sh в репозитории шаблона"
+  else
+    ok "дрейф CORE: инстанс совпадает с шаблоном"
+  fi
 fi
 
 echo ""

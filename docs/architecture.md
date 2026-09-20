@@ -78,9 +78,11 @@ flowchart LR
 не молчаливая — пустой `GATE_CMD` или отсутствующий `SECRET_SCAN_CMD` хуки называют строкой
 в stderr, потому что молчаливое отсутствие проверки неотличимо от пройденной.
 
-Смоук самих ярусов в инстансе — `scripts/verify-harness.sh` (8 проверок: guard блокирует и
-пропускает, sensor и gate живы, `/note` на месте). В репе-шаблоне он выходит кодом 3
-«ничего не проверено»: харнесса тут не раскатано, проверять нечего.
+Смоук самих ярусов в инстансе — `scripts/verify-harness.sh`: guard блокирует и пропускает,
+sensor и gate живы, `/note` на месте, ярус 3 подключён к git-хуку. Точный состав печатает сам
+прогон [PASS]-строками — числа тут не держим, прошлое («8 проверок») пережило рост вдвое и
+описывало не тот скрипт. В репе-шаблоне он выходит кодом 3 «ничего не проверено»: харнесса
+тут не раскатано, проверять нечего.
 
 ### Runtime flow
 
@@ -184,6 +186,7 @@ harness-template/
 │   │   │                              (arbiter, lens-contracts, lens-tests) — только по флагу
 │   │   │                              `bootstrap.sh … --agents`, Copier их НЕ возит
 │   │   ├── guards/
+│   │   │   ├── sensor.sh            ← диспетчер PostToolUse: роутинг по расширению (.py → pytest, .ts → vitest)
 │   │   │   ├── block-zones.sh      ← guard: читает READONLY_ZONES
 │   │   │   ├── block-large-edit.sh ← guard: Edit крупного файла блокирует, крупный Write предупреждает
 │   │   │   ├── log-instructions.sh ← InstructionsLoaded: пишет, какое правило и почему загрузилось
@@ -201,7 +204,7 @@ harness-template/
 │   │   ├── rules/                  ← common-core + per-language
 │   │   │   ├── common/             ← workflow, testing, git, methodology-routing,
 │   │   │   │                          context-hygiene, comments (всегда)
-│   │   │   └── lang/               ← vue.md, dotnet.md, go.md, php.md, python.md (paths-scoped)
+│   │   │   └── lang/               ← vue.md, react.md, dotnet.md, go.md, php.md, python.md (paths-scoped, мультивыбор через extra_langs)
 │   │   │       └── shell.md        ← CORE: едет ВСЕГДА, харнесс каждого проекта на .sh
 │   │   └── docs/                   ← проектная память (JIT)
 │   │       ├── ARCHITECTURE.md.template  ← generic

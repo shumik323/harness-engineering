@@ -33,7 +33,8 @@ MVP, дальше растёт от реальных отказов.
 ```bash
 mkdir -p myproj && cd myproj
 bash /path/to/harness-template/scripts/bootstrap.sh myproj python
-# lang: python | vue | go | php | dotnet | none      (--agents — доставить роли субагентов)
+# lang: python | vue | react | go | php | dotnet | none   (--agents — доставить роли субагентов)
+# extra_langs: доп. паки для монорепы — python на бэкенде, react на фронте
 ```
 
 Скрипт делает `git init`, раскатывает харнесс, заполняет `.harness.conf` под выбранный язык

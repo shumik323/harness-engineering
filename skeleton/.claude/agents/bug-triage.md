@@ -30,6 +30,7 @@ Always grep these before forming a hypothesis. A bug that matches a recorded got
 ## Input you receive
 
 The caller gives you some subset of:
+
 - A one-line symptom
 - Affected route or component (path / name)
 - Optional: console error, stack trace, reproduction steps

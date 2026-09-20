@@ -6,7 +6,9 @@ CORE_PATHS=(
   # Пара «пишет лог загрузок / читает лог»: порознь бессмысленны, поэтому едут вместе.
   ".claude/guards/log-instructions.sh"
   ".claude/guards/gate.sh"
+  ".claude/guards/sensor.sh"
   ".claude/guards/run-test-hook.sh"
+  ".claude/guards/run-pytest-hook.sh"
   ".claude/guards/nudge.sh"
   ".claude/guards/pre-push.sh"
   ".claude/skills/note/append.sh"

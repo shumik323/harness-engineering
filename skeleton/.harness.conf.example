@@ -1,19 +1,57 @@
-# .harness.conf — конфигурация харнесса для этого проекта
-# Скопируй в корень репо как `.harness.conf`, заполни под свой проект.
-# Этот файл читается скриптами в .claude/guards/ и .claude/commands/
+# .harness.conf — конфигурация харнесса этого проекта.
+# Читается скриптами в .claude/guards/ и scripts/. Приезжает при первом
+# `copier copy`, при `copier update` НЕ перезаписывается (файл твой).
+#
+# Стартовое состояние — полный fail-open: команды пусты → sensor и gate молчат,
+# работают только guard (readonly-зоны) и nudge. Заполняй по мере появления стека.
+#
+# ВАЖНО: значения в форме ${VAR:-default}, не VAR=default. Это осознанно:
+# sensor-диспетчер (.claude/guards/sensor.sh) передаёт переменные дочернему хуку
+# через env, а хук сорсит этот файл поверх — голое присваивание затёрло бы env.
 
-# --- Sensor ---
+# --- Sensor (PostToolUse: тесты на каждую правку) ---
 
-# Директория за которой следит хук при изменениях файлов.
-# Используется в run-test-hook.sh для фильтрации (нет изменений → молчим).
-# Пример: "packages/<пакет>/lib" или "src"
-WATCH_DIR="src"
+# Диспетчер сам находит корень воркспейса подъёмом от изменённого файла до
+# ближайшего манифеста (package.json / pyproject.toml). Обычный проект → корень
+# репы, монорепа → своё приложение. *_WORKDIR заполняй только если раскладка
+# нестандартная: явное значение отключает автоопределение.
 
-# Команда запуска тестов. Должна принимать список файлов как аргументы.
-# ВАЖНО: локальные JS-бинари (vitest/jest) — через `npx` / `pnpm exec`, иначе хук их не найдёт:
-# PostToolUse запускается без node_modules/.bin в PATH → `command not found` → ложный «Tests FAILED».
-# Пример: "npx vitest related --run" · "npx jest --testPathPattern" · "uv run pytest -q"
-TEST_CMD="npx vitest related --run"
+# ЯВНАЯ карта «папка → стек [→ workdir]» — если хочешь задекларировать раскладку
+# руками, а не полагаться на автоматику. Первый совпавший glob выигрывает; путь
+# матчится от корня репы вместе с поддеревом. Стек: py | js | none (none = папка
+# явно не тестируется). Файл в папке ЧУЖОГО стека → sensor молчит (карта — заявление
+# владения). workdir опционален (пусто → автоопределение внутри папки).
+# Нет карты / нет совпадения → работает автоопределение, как описано выше.
+# Пример монорепы:
+#   SENSOR_MAP="
+#   apps/api     py
+#   apps/web     js
+#   apps/admin   js
+#   packages/*   js
+#   docs         none
+#   "
+SENSOR_MAP="${SENSOR_MAP:-}"
+
+# JS/TS (*.ts *.tsx *.js *.jsx *.vue). Пусто → молчим.
+# Включить: JS_TEST_CMD="npx vitest related --run"   (jest: "npx jest --findRelatedTests")
+JS_TEST_CMD="${JS_TEST_CMD:-}"
+JS_WATCH_DIR="${JS_WATCH_DIR:-}"
+JS_TEST_WORKDIR="${JS_TEST_WORKDIR:-}"
+
+# Python (*.py). Пусто → молчим.
+# Включить: PY_TEST_CMD="uv run pytest -q"   (без uv: "pytest -q")
+PY_TEST_CMD="${PY_TEST_CMD:-}"
+PY_WATCH_DIR="${PY_WATCH_DIR:-}"
+PY_TEST_WORKDIR="${PY_TEST_WORKDIR:-}"
+# testmon — выбор тестов по графу зависимостей (нужен pytest-testmon)
+# map     — исходник foo.py → парный tests/test_foo.py; не найден → молчим
+PYTEST_MODE="${PYTEST_MODE:-map}"
+
+# Legacy-переменные одностековых конфигов. Диспетчер использует их как фолбэк
+# для JS-ветки, когда JS_* не заданы. В новых проектах — не трогать.
+WATCH_DIR="${WATCH_DIR:-}"
+TEST_CMD="${TEST_CMD:-}"
+TEST_WORKDIR="${TEST_WORKDIR:-}"
 
 # --- Guard ---
 
@@ -54,6 +92,12 @@ GATE_CMD="turbo type-check lint build"
 # молча и всплывают только в CI. Пусто → тесты на push не гоняются. Примеры:
 #   turbo:  "turbo test"
 #   npm:    "npm run test"
+# ВАЖНО: если настроен COVERAGE_REPORT (ниже), эта команда обязана СОЗДАВАТЬ отчёт —
+# то есть быть прогоном с покрытием, а не голым `test`. Шаг покрытия идёт следом и читает
+# файл, который пишут ЭТИ тесты; голый прогон оставляет вчерашний, и проверка честно
+# пропускает себя каждый push. Порознь обе переменные при этом выглядят настроенными.
+# Замер в инстансе (vitest, 1199 тестов): прогон с покрытием 16 секунд против 15 — цена
+# не аргумент, а без неё шаг покрытия не работает вовсе.
 GATE_TEST_CMD="turbo test"
 
 # Откуда запускать GATE_CMD (по умолчанию REPO_ROOT). Обычно пусто.
@@ -79,6 +123,8 @@ SECRET_SCAN_CMD=""
 # не последовательность появления строк, а rebase/squash стирают порядок задним числом.
 
 # Путь к отчёту покрытия в формате Cobertura XML. Пусто → проверка молчит и не работает.
+# Команда из списка ниже должна стоять в GATE_TEST_CMD, а не жить отдельным скриптом:
+# отчёт создаётся прогоном тестов яруса 3, другого создателя у него нет.
 #   pytest:  "uv run pytest --cov --cov-report=xml" даёт coverage.xml
 #   vitest:  reporter 'cobertura' в конфиге → coverage/cobertura-coverage.xml
 #   dotnet:  coverlet с /p:CoverletOutputFormat=cobertura
@@ -147,6 +193,11 @@ GOTCHA_ID_PREFIX="## §"
 # Личный слой — `~/.harness/<имя-каталога-репо>.conf` (или $HARNESS_LOCAL_CONF), одна строка:
 #     WIKI_PATH="$HOME/wiki/projects/<проект>-harness"
 # load-context.sh читает его ПОСЛЕ этого файла. Вики нет — слой опциональный, скрипт молчит.
+
+# Там же живёт путь к клону шаблона — он тоже у каждого свой:
+#     HARNESS_TEMPLATE_PATH="$HOME/src/harness-engineering"
+# Его читает verify-harness.sh, чтобы показать дрейф CORE (`harness-status.sh` лежит в
+# шаблоне и в инстанс не доставляется). Не задан — смоук скажет SKIP и пойдёт дальше.
 
 # --- Harness version ---
 

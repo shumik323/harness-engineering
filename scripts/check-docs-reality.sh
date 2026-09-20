@@ -392,6 +392,10 @@ GUARDDEAD="$(python3 - <<'PY'
 import os, re
 conf = 'scripts/lib/layers.sh'
 settings = 'skeleton/.claude/settings.json.template'
+# Страж, которого зовёт другой страж (диспетчер), подключён не хуже названного
+# в настройках напрямую: иначе дочерние хуки роутера выглядят мёртвыми.
+import glob as _glob
+_peers = ''.join(open(f, encoding='utf-8').read() for f in _glob.glob('skeleton/.claude/guards/*.sh'))
 boot = 'scripts/bootstrap.sh'
 core = re.findall(r'"(\.claude/guards/[^"]+\.sh)"', open(conf, encoding='utf-8').read())
 s = open(settings, encoding='utf-8').read() if os.path.isfile(settings) else ''
@@ -407,8 +411,8 @@ for path in core:
         if name == 'run-pytest-hook.sh' and 'run-pytest-hook' not in b:
             dead.append(f'{name}(bootstrap больше не подставляет)')
         continue
-    if name not in s:
-        dead.append(f'{name}(не подключён в settings.json.template)')
+    if name not in s and name not in _peers:
+        dead.append(f'{name}(не подключён ни в settings, ни другим стражем)')
 print(' '.join(dead), end='')
 PY
 )"

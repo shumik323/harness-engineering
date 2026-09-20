@@ -41,7 +41,6 @@ try:
 except Exception:
     print(False)
 " 2>/dev/null || echo False)"
-  [[ "$STOP_ACTIVE" == "True" ]] && exit 0
 fi
 
 # Fail-open, но НЕ одинаково молча. Два разных случая:
@@ -89,6 +88,12 @@ if [[ ! "$HOOK_INPUT" =~ ^[[:space:]]*$ && -x "${REPO_ROOT}/scripts/check-ac-ref
   # Первая строка вывода скрипта — итог вида «AC БЕЗ ТЕСТА: N при пороге M».
   AC_FIRST="$(printf '%s' "$AC_OUT" | grep -m1 'AC БЕЗ ТЕСТА' || true)"
   [[ -n "$AC_FIRST" ]] && WARN+="${AC_FIRST} Блокировать это будет pre-push, не сейчас. "
+  # Скрипт спроектирован «fail-open, но ВСЛУХ»: при ненастроенности он говорит
+  # об этом в stderr. Захватив вывод и взяв из него одну строку, мы этот голос
+  # глушили — ярус выключен и неотличим от пройденного (rules/common/testing.md).
+  AC_MUTE="$(printf '%s' "$AC_OUT" | grep -m1 'не задан\|не работает' || true)"
+  [[ -n "$AC_MUTE" ]] && WARN+="${AC_MUTE} "
+
 fi
 
 # node_modules старее lock-файла → проверка судит о состоянии, которого нет.
@@ -122,5 +127,15 @@ set -e
 
 echo "$OUTPUT" | tail -40 >&2
 echo "" >&2
+
+# Агент уже в forced-continuation после нашего же блока: второй раз не блокируем,
+# иначе бесконечный цикл. Но и не молчим — молчаливый пропуск неотличим от
+# успеха, а `rules/common/testing.md` требует, чтобы проверка падала, а не
+# исчезала. Поэтому итог печатаем всегда, а ход отпускаем.
+if [[ "${STOP_ACTIVE:-False}" == "True" ]]; then
+  echo "GATE FAILED (exit ${EXIT_CODE}): \`${GATE_CMD}\` не прошёл. Ход НЕ блокируется — это повторный Stop, — но проверка красная." >&2
+  exit 0
+fi
+
 echo "GATE FAILED (exit ${EXIT_CODE}): \`${GATE_CMD}\` не прошёл. Почини ошибки выше прежде чем завершить ход или push." >&2
 exit 2
