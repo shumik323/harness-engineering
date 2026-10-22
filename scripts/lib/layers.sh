@@ -21,6 +21,17 @@ CORE_PATHS=(
   ".claude/rules/common/methodology-routing.md"
   ".claude/rules/common/context-hygiene.md"
   ".claude/rules/common/comments.md"
+  # Path-scoped (`paths:` на файлы тестов): лежит в common/, но в контекст попадает только на тестах.
+  ".claude/rules/common/testing-files.md"
+  # Обоснования и примеры к правилам. Вне rules/ намеренно: rules/ грузится рекурсивно на старте,
+  # а это читается по ссылке из правила. Едут вместе с правилами — иначе ссылки битые.
+  ".claude/rules-detail/comments.md"
+  ".claude/rules-detail/context-hygiene.md"
+  ".claude/rules-detail/git.md"
+  ".claude/rules-detail/methodology-routing.md"
+  ".claude/rules-detail/testing.md"
+  ".claude/rules-detail/testing-files.md"
+  ".claude/rules-detail/workflow.md"
   # shell.md лежит в rules/lang/, но CORE и доставляется ВСЕГДА, а не по выбору lang:
   # харнесс любого проекта состоит из .sh, и правит их агент независимо от языка проекта.
   # Path-scoped (`**/*.sh`), поэтому в контекст попадает только при работе со скриптами.

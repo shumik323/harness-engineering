@@ -10,11 +10,21 @@ set -uo pipefail
 
 REPO_ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 
+# Конфиг до блока спек: SPEC_FIRST читается из него.
+CONF="${REPO_ROOT}/.harness.conf"
+# shellcheck source=/dev/null
+[[ -f "$CONF" ]] && source "$CONF"
+
 SPECS="$(ls "$REPO_ROOT"/docs/specs/spec-*.md 2>/dev/null || true)"
 
+# Напоминание «спеки нет» — только в проекте, который выбрал spec-first. Условие по каталогу
+# не годится: `docs/specs/_template.md` едет в каждый инстанс, и строка «код не начинаем»
+# висела бы в каждой сессии проекта, где спек не ведут.
 if [[ -z "$SPECS" ]]; then
-  echo "Спеки среза нет. Первый шаг — копия docs/specs/_template.md → spec-<дата>-<срез>.md."
-  echo "Пока нет файла спеки с заполненными AC — код не начинаем."
+  if [[ "${SPEC_FIRST:-}" == "yes" ]]; then
+    echo "Спеки среза нет. Первый шаг — копия docs/specs/_template.md → spec-<дата>-<срез>.md."
+    echo "Пока нет файла спеки с заполненными AC — код не начинаем."
+  fi
 else
   echo "Активные спеки:"
   while IFS= read -r f; do
@@ -23,10 +33,6 @@ else
     echo "  $(basename "$f") — незакрытых галок: ${OPEN:-0}"
   done <<< "$SPECS"
 fi
-
-CONF="${REPO_ROOT}/.harness.conf"
-# shellcheck source=/dev/null
-[[ -f "$CONF" ]] && source "$CONF"
 
 # Личный слой вне репо: адрес вики в версионируемом конфиге уехал бы в общий git.
 # Домашний каталог, а не `.harness.conf.local` рядом: `git add -A` не захватит то,
