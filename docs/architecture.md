@@ -13,7 +13,7 @@
 ## Версионируемый sync (Copier)
 
 CORE-слой синкается через [Copier](https://copier.readthedocs.io): guards,
-skills/{plan,rename,note,end-session,task}, rules/common **и `scripts/` — 7 скриптов, на
+skills/{plan,feature,rename,note,end-session,task}, rules/common **и `scripts/` — 7 скриптов, на
 которые CORE-правила ссылаются напрямую**. Состав CORE задан списком `CORE_PATHS` в
 `scripts/lib/layers.sh`, он же источник истины для самопроверки обоих каналов.
 
@@ -191,10 +191,11 @@ harness-template/
 │   │   │   ├── run-pytest-hook.sh  ← sensor-вариант для python (PYTEST_MODE)
 │   │   │   ├── gate.sh             ← gate Ярус 2: GATE_CMD без тестов (Stop + база pre-push, loop-safe)
 │   │   │   ├── pre-push.sh         ← Ярус 3: gate + секрет-скан + сверка AC↔тест + тесты + покрытие diff
-│   │   │   └── nudge.sh            ← nudge: UserPromptSubmit, boundary→verify-напоминание (exit 0, не блокирует)
+│   │   │   └── nudge.sh            ← nudge: UserPromptSubmit, фича→/feature, boundary→verify-напоминание (exit 0, не блокирует)
 │   │   ├── skills/                 ← команды (текущий стандарт)
 │   │   │   ├── note/               ← /note: capture в PENDING-NOTES.md
 │   │   │   ├── task/               ← /task: шаблон промпта
+│   │   │   ├── feature/            ← /feature: трек A по шагам, состояние в файле плана
 │   │   │   ├── plan/               ← /plan: шаблон плана (обязательные секции, авто-инвок)
 │   │   │   ├── rename/             ← /rename: ссылки до rename → атомарно (авто-инвок)
 │   │   │   └── end-session/        ← /end-session: triage + лог
