@@ -2,6 +2,8 @@
 name: Explore
 description: Быстрый read-only поиск и разбор кодовой базы — обнаружение файлов, поиск по коду, исследование структуры без правок.
 model: haiku
+effort: low
+tools: Read, Grep, Glob, Bash
 color: cyan
 ---
 
