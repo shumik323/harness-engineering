@@ -15,6 +15,9 @@
 #   роли-агенты   — дефолт без них, флаг --agents доставляет
 # Второй инстанс (lang=none) разворачивается только для проверки флага --agents.
 set -uo pipefail
+# Фикстуры ниже делают `git init` в песочнице. Унаследованный от хука GIT_DIR (в worktree он
+# абсолютный) направил бы их в боевой репо. Дубль защиты из verify-all.sh — скрипт зовут и отдельно.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_PREFIX
 
 TPL="$(cd "$(dirname "$0")/.." && pwd)"
 FAILED=0

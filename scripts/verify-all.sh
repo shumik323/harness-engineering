@@ -16,6 +16,12 @@
 
 set -uo pipefail
 
+# Git выставляет хукам GIT_DIR. В обычном чекауте он относительный (`.git`) и безвреден, в
+# worktree — абсолютный путь к настоящему репо. Фикстуры ниже делают `git init` в песочнице:
+# с унаследованным GIT_DIR это переинициализировало боевой репо (core.bare=true, чужой
+# user.email, ветки фикстур). Проверки сами находят свой репо, наследовать нечего.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_PREFIX
+
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT" || exit 1
 
