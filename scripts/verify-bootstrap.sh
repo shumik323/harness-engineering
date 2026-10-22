@@ -83,9 +83,14 @@ check "незаменённых плейсхолдеров нет" "$R" нет
 [[ -x "$P/scripts/load-context.sh" ]] && R=yes || R=no
 check "SessionStart-скрипт существует и исполняем" "$R" yes
 
-CTX_OUT=$(cd "$P" && bash scripts/load-context.sh 2>&1)
+# Напоминание о спеке — только по флагу SPEC_FIRST: каталог docs/specs едет в каждый инстанс,
+# и без флага строка «код не начинаем» висела бы в проектах, где спек не ведут.
+CTX_OUT=$(cd "$P" && env -u SPEC_FIRST bash scripts/load-context.sh 2>&1)
 echo "$CTX_OUT" | grep -q "код не начинаем" && R=yes || R=no
-check "SessionStart напоминает про spec-first" "$R" yes
+check "без SPEC_FIRST напоминания про spec-first нет" "$R" no
+CTX_OUT=$(cd "$P" && SPEC_FIRST=yes bash scripts/load-context.sh 2>&1)
+echo "$CTX_OUT" | grep -q "код не начинаем" && R=yes || R=no
+check "SPEC_FIRST=yes: SessionStart напоминает про spec-first" "$R" yes
 
 # log-append.sh: правило в workflow.md и скил end-session требуют его ПО ИМЕНИ и
 # запрещают Edit для лога. Проверяем не наличие, а работу — файл на месте, но не

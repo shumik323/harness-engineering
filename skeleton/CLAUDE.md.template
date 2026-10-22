@@ -5,7 +5,9 @@
 Карта входа (правила не дублируются здесь — живут в `.claude/rules/common/`):
 
 - **Грузится всегда:** этот файл + `rules/common/*.md` (workflow, testing, git,
-  methodology-routing, context-hygiene, comments).
+  methodology-routing, context-hygiene, comments). Кроме `testing-files` — у него `paths:`,
+  грузится только при работе с тестами.
+- **По ссылке, не автоматически:** `.claude/rules-detail/` — обоснования и примеры к правилам.
 - **Состояние:** буфер наблюдений `.claude/PENDING-NOTES.md`; долгая память — `WIKI_PATH` (грузит `load-context.sh`).
 - **Нетривиальная задача → начни с `/plan`** (обязательные секции; таблица команд ниже). Однострочник — без церемоний.
 - **Сомнение в факте / пути / конфиге → проверь** (`ls`/`grep`/чтение), не действуй по памяти.
